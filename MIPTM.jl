@@ -2,8 +2,8 @@ module MIPTM
 	using DifferentialEquations, IterTools, LinearAlgebra
 	using Statistics: mean
 
-	export Parameters, kronForMany, calcMean, calcMeanAndVar, ensSolToList, expVal, schrodinger
-	export MIPT
+	export Parameters, ParametersConstructor, NewProbParameters, kronForMany, calcMean, calcMeanAndVar, ensSolToList, expVal, schrodinger
+	export MIPT, vonNeumann, entanglementAndMeasProbability
 
 	struct TimeData
     	dt::Float64
@@ -49,17 +49,20 @@ module MIPTM
 		op::Operators #Some usefull operators
 		𝐻::Array{Complex{Float64},2}
 		Ψ₀::Array{Complex{Float64},1}
-		function Parameters(;t::Tuple{Float64,Float64,Float64},
-			traj=1, atol=1e-3, rtol=1e-3, p::Float64, f::Float64, ω::Float64,
-			U::Float64, J::Float64, Ψ₀::Array{Array{Complex{Float64},1},1},
-			measOp::Array{Array{Complex{Float64},2},1})
-			numOfSys = length(Ψ₀)
-			s = length(Ψ₀[1])
-			dim = s^numOfSys
-			op = Operators(s, numOfSys, measOp)
-			t = TimeData(t[1], t[2], t[3], f)
-			new(numOfSys, s, dim, p, f, t, traj, atol, rtol, op, boseHubbard(ω=ω, U=U, J=J, n=op.n, a=op.a, 𝐼=op.𝐼, numOfSys=numOfSys), kronForMany(Ψ₀))
-		end
+	end
+	function ParametersConstructor(;t::Tuple{Float64,Float64,Float64},
+		traj::Int64, atol=1e-3, rtol=1e-3, p::Float64, f::Float64, ω::Float64,
+		U::Float64, J::Float64, Ψ₀::Array{Array{Complex{Float64},1},1},
+		measOp::Array{Array{Complex{Float64},2},1})
+		numOfSys = length(Ψ₀)
+		s = length(Ψ₀[1])
+		dim = s^numOfSys
+		op = Operators(s, numOfSys, measOp)
+		t = TimeData(t[1], t[2], t[3], f)
+		Parameters(numOfSys, s, dim, p, f, t, traj, atol, rtol, op, boseHubbard(ω=ω, U=U, J=J, n=op.n, a=op.a, 𝐼=op.𝐼, numOfSys=numOfSys), kronForMany(Ψ₀))
+	end
+	function NewProbParameters(;p::Parameters, prob::Float64)
+		Parameters(p.numOfSys, p.s, p.dim, prob, p.f, p.t, p.traj, p.atol, p.rtol, p.op, p.𝐻, p.Ψ₀)
 	end
 	function makeSetOfMeasurementOperators(operators, numOfSys, 𝐼)
 		measOp = []
@@ -183,6 +186,18 @@ module MIPTM
 		var .= var./numOfVal .- mean.^2
         mean, var
     end
+	function vonNeumann(Ψ::Array{Complex{Float64},1}, aDim::Int64, bDim::Int64)
+		ρₐ = partialTrace(Ψ*Ψ', aDim, bDim)
+		F = svd(ρₐ)
+		-dot(real(F.S), vonNeumannlog.(real(F.S)))
+	end
+	function vonNeumannlog(x)
+		if x == 0
+			return 1
+		else
+			return log(x)
+		end
+	end
 	function ensSolToList(ensSol::EnsembleSolution)::Array{Array{Array{Complex{Float64},1},1},1}
         res = []
 		for sol in ensSol
@@ -226,7 +241,30 @@ module MIPTM
 		cb = PresetTimeCallback(p.t.measTimes, measurementEffect, save_positions=(true, true))
 		prob = ODEProblem(schrodinger, p.Ψ₀, p.t.Δt, p, saveat = p.t.dt)
 		enProb = EnsembleProblem(prob, safetycopy=true)
-		sol = solve(enProb, EnsembleThreads(), abstol=p.atol, reltol=p.rtol, trajectories=p.traj, callback=cb)
+		sol = solve(enProb, SRA1(), EnsembleThreads(), abstol=p.atol, reltol=p.rtol, trajectories=p.traj, callback=cb)
 		ensSolToList(sol)
+	end
+	function lastValues(sol)
+		res = []
+		for i in sol
+			push!(res, [last(i)])
+		end
+		res
+	end
+	function lastValues(sol)
+		res = []
+		for i in sol
+			push!(res, [last(i)])
+		end
+		res
+	end
+	function entanglementAndMeasProbability(p::Parameters, probabilities)
+		res = []
+		for prob in probabilities
+			param = NewProbParameters(p=p, prob=prob)
+			@time sol = lastValues(MIPT(param))
+			push!(res, calcMean(sol, x -> vonNeumann(x, param.s, param.s))[1])
+		end
+		res
 	end
 end

@@ -8,13 +8,9 @@ module MIPTM
 	struct TimeData
     	dt::Float64
     	Δt::Tuple{Float64,Float64}
-		measTimes::StepRangeLen{Float64,Base.TwicePrecision{Float64},Base.TwicePrecision{Float64}}
-    	times::Array{Float64,1}
-    	function TimeData(startTime::Float64, dt::Float64, endTime::Float64, f::Float64)
-			measTimes = (startTime + 1/f):1/f:(endTime - 1/f)
-			times = startTime:dt:endTime
-			times = sort([collect(measTimes); collect(times)]) #All the time-steps and the steps where measurements happen
-			new(dt, (startTime, endTime), measTimes, times)
+    	times::StepRangeLen{Float64,Base.TwicePrecision{Float64},Base.TwicePrecision{Float64}}
+    	function TimeData(startTime::Float64, dt::Float64, endTime::Float64)
+			new(dt, (startTime, endTime), startTime:dt:endTime)
     	end
     end
 	struct Operators
@@ -40,8 +36,7 @@ module MIPTM
 		numOfSys::Int64 #Number of systems
 		s::Int64 #Max size of one system
 		dim::Int64 #The dimension of the total system
-		p::Float64 #Probability of measuring one site
-		f::Float64 #Frequency of these measurements
+		Γ::Float64 #Probability of measuring one site
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
 		atol::Float64
@@ -51,15 +46,15 @@ module MIPTM
 		Ψ₀::Array{Complex{Float64},1}
 	end
 	function ParametersConstructor(;t::Tuple{Float64,Float64,Float64},
-		traj::Int64, atol=1e-3, rtol=1e-3, p::Float64, f::Float64, ω::Float64,
+		traj::Int64, atol=1e-3, rtol=1e-3, Γ::Float64, ω::Float64,
 		U::Float64, J::Float64, Ψ₀::Array{Array{Complex{Float64},1},1},
 		measOp::Array{Array{Complex{Float64},2},1})
 		numOfSys = length(Ψ₀)
 		s = length(Ψ₀[1])
 		dim = s^numOfSys
 		op = Operators(s, numOfSys, measOp)
-		t = TimeData(t[1], t[2], t[3], f)
-		Parameters(numOfSys, s, dim, p, f, t, traj, atol, rtol, op, boseHubbard(ω=ω, U=U, J=J, n=op.n, a=op.a, 𝐼=op.𝐼, numOfSys=numOfSys), kronForMany(Ψ₀))
+		t = TimeData(t[1], t[2], t[3])
+		Parameters(numOfSys, s, dim, Γ, t, traj, atol, rtol, op, boseHubbard(ω=ω, U=U, J=J, n=op.n, a=op.a, 𝐼=op.𝐼, numOfSys=numOfSys), kronForMany(Ψ₀))
 	end
 	function NewProbParameters(;p::Parameters, prob::Float64)
 		Parameters(p.numOfSys, p.s, p.dim, prob, p.f, p.t, p.traj, p.atol, p.rtol, p.op, p.𝐻, p.Ψ₀)
@@ -198,10 +193,14 @@ module MIPTM
 			return log(x)
 		end
 	end
-	function ensSolToList(ensSol::EnsembleSolution)::Array{Array{Array{Complex{Float64},1},1},1}
+	function ensSolToList(ensSol::EnsembleSolution, times)::Array{Array{Array{Complex{Float64},1},1},1}
         res = []
 		for sol in ensSol
-            push!(res, [i for i in sol.u])
+			oneSol = []
+			for t in times
+				push!(oneSol, sol(t))
+			end
+			push!(res, oneSol)
         end
 		res
     end
@@ -211,8 +210,9 @@ module MIPTM
 	function measurementEffect(integrator)
 		Ψ = integrator.u
 		p = integrator.p
+		dt = integrator.t - integrator.tprev
 		for i in 1:p.numOfSys
-			if rand(Float64) < p.p #Does the measurement happen?
+			if rand(Float64) < p.Γ*dt  #Does the measurement happen?
 				probForProjection = rand(Float64)
 				pⱼ = 0 #Probability for a single projection
 				for j in 1:length(p.op.measOp[i])
@@ -238,11 +238,12 @@ module MIPTM
 		expVal(Ψ, op' * op)
 	end
 	function MIPT(p::Parameters)
-		cb = PresetTimeCallback(p.t.measTimes, measurementEffect, save_positions=(true, true))
+		condition(u, t, integrator) = true
+		cb = DiscreteCallback(condition, measurementEffect, save_positions=(true,true))
 		prob = ODEProblem(schrodinger, p.Ψ₀, p.t.Δt, p, saveat = p.t.dt)
 		enProb = EnsembleProblem(prob, safetycopy=true)
 		sol = solve(enProb, SRA1(), abstol=p.atol, rtol=p.rtol, EnsembleThreads(), trajectories=p.traj, callback=cb)
-		ensSolToList(sol)
+		ensSolToList(sol, p.t.times)
 	end
 	function lastValues(sol)
 		res = []

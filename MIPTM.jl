@@ -241,15 +241,8 @@ module MIPTM
 		cb = PresetTimeCallback(p.t.measTimes, measurementEffect, save_positions=(true, true))
 		prob = ODEProblem(schrodinger, p.Ψ₀, p.t.Δt, p, saveat = p.t.dt)
 		enProb = EnsembleProblem(prob, safetycopy=true)
-		sol = solve(enProb, SRA1(), EnsembleThreads(), abstol=p.atol, reltol=p.rtol, trajectories=p.traj, callback=cb)
+		sol = solve(enProb, SRA1(), abstol=p.atol, rtol=p.rtol, EnsembleThreads(), trajectories=p.traj, callback=cb)
 		ensSolToList(sol)
-	end
-	function lastValues(sol)
-		res = []
-		for i in sol
-			push!(res, [last(i)])
-		end
-		res
 	end
 	function lastValues(sol)
 		res = []
@@ -260,10 +253,11 @@ module MIPTM
 	end
 	function entanglementAndMeasProbability(p::Parameters, probabilities)
 		res = []
+		halfOfSystems = Int(floor((p.numOfSys / 2)))
 		for prob in probabilities
 			param = NewProbParameters(p=p, prob=prob)
 			@time sol = lastValues(MIPT(param))
-			push!(res, calcMean(sol, x -> vonNeumann(x, param.s, param.s))[1])
+			push!(res, calcMean(sol, x -> vonNeumann(x, param.s^halfOfSystems, param.s^(param.numOfSys - halfOfSystems)))[1])
 		end
 		res
 	end

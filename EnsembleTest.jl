@@ -6,7 +6,7 @@ function schrodinger(Ψ, p, t)
 	-1im * p.𝐻 * Ψ
 end
 function f()
-	p = Parameters(numOfSys=3, s=3, t=(0.0, 0.01, 5.0), p=0.5, f=1.0, ω=1.0, U=5.0, J=1.0)
+	p = Parameters(numOfSys=3, s=3, t=(0.0, 0.01, 5.0), Γ=0.5, ω=1.0, U=5.0, J=1.0)
 	Ψ₀ = kronForMany([[0.0+0im, 1.0, 0.0], [0.0+0im, 1.0, 0.0], [0.0+0im, 0.0, 1.0]])
 	prob = ODEProblem(schrodinger, Ψ₀, p.t.Δt, p, saveat = p.t.dt)
 	enProb = EnsembleProblem(prob, safetycopy=true)

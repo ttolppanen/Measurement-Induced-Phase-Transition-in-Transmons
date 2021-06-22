@@ -56,8 +56,8 @@ module MIPTM
 		t = TimeData(t[1], t[2], t[3])
 		Parameters(numOfSys, s, dim, Γ, t, traj, atol, rtol, op, boseHubbard(ω=ω, U=U, J=J, n=op.n, a=op.a, 𝐼=op.𝐼, numOfSys=numOfSys), kronForMany(Ψ₀))
 	end
-	function NewProbParameters(;p::Parameters, prob::Float64)
-		Parameters(p.numOfSys, p.s, p.dim, prob, p.f, p.t, p.traj, p.atol, p.rtol, p.op, p.𝐻, p.Ψ₀)
+	function NewProbParameters(;p::Parameters, Γ::Float64)
+		Parameters(p.numOfSys, p.s, p.dim, Γ, p.t, p.traj, p.atol, p.rtol, p.op, p.𝐻, p.Ψ₀)
 	end
 	function makeSetOfMeasurementOperators(operators, numOfSys, 𝐼)
 		measOp = []
@@ -252,11 +252,11 @@ module MIPTM
 		end
 		res
 	end
-	function entanglementAndMeasProbability(p::Parameters, probabilities)
+	function entanglementAndMeasProbability(p::Parameters, measRates)
 		res = []
 		halfOfSystems = Int(floor((p.numOfSys / 2)))
-		for prob in probabilities
-			param = NewProbParameters(p=p, prob=prob)
+		for rate in measRates
+			param = NewProbParameters(p=p, Γ=rate)
 			@time sol = lastValues(MIPT(param))
 			push!(res, calcMean(sol, x -> vonNeumann(x, param.s^halfOfSystems, param.s^(param.numOfSys - halfOfSystems)))[1])
 		end

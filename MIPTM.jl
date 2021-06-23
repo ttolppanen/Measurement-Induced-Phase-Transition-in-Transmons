@@ -3,7 +3,7 @@ module MIPTM
 	using Statistics: mean
 
 	export Parameters, ParametersConstructor, NewProbParameters, kronForMany, calcMean, calcMeanAndVar, ensSolToList, expVal, schrodinger
-	export MIPT, vonNeumann, entanglementAndMeasProbability
+	export MIPT, vonNeumann, entanglementAndMeasProbability, vonNeumannHalfOfSystem
 
 	struct TimeData
     	dt::Float64
@@ -192,6 +192,10 @@ module MIPTM
 		else
 			return log(x)
 		end
+	end
+	function vonNeumannHalfOfSystem(Ψ::Array{Complex{Float64},1}, p::Parameters)
+		halfOfSystems = Int(floor((p.numOfSys / 2)))
+		vonNeumann(Ψ, p.s^halfOfSystems, p.s^(p.numOfSys - halfOfSystems))
 	end
 	function ensSolToList(ensSol::EnsembleSolution, times)::Array{Array{Array{Complex{Float64},1},1},1}
         res = []

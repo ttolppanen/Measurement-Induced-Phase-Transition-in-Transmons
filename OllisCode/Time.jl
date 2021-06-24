@@ -4,7 +4,7 @@ function lanczos(H, state, sdim)
     dim = length(state)
     h = zeros(ComplexF64, sdim, sdim)
     V = zeros(ComplexF64, dim, sdim)
-    V[:, 1] .= state
+    V[:, 1] .= normalize(state)
     w = H * state
     h[1, 1] = w' * state
     w .-= h[1, 1] * state
@@ -77,7 +77,7 @@ function propagator(H, state, sdim, dt)
     end
     
 
-    return exp(-1.0im * dt * h)[1, :]
+    return exp(-im * dt * h)[1, :]
 end
 
 

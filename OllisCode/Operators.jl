@@ -1,6 +1,24 @@
 using SparseArrays
 include("Basis.jl")
 
+function projector(L, N, l, n)
+    dim = dimension(L, N)
+    P = spzeros(dim, dim)
+    basis_vector = zeros(Int64, L)
+    basis_vector[1] = N
+    for i in 1:dim
+        if i != 1
+           next!(basis_vector)
+        end
+
+        if basis_vector[l] == n
+            P[i, i] = 1.
+        end
+    end
+
+    return P
+end
+
 function number(L, N, site)
     dim = dimension(L, N)
     n = spzeros(dim, dim)
@@ -23,7 +41,7 @@ function numbers(L, N)
     for l in 1:L
         push!(n_l, number(L, N, l))
     end
-    
+
     return n_l
 end
 
@@ -34,7 +52,7 @@ function numbers_squared(L, N)
         n = number(L, N, l)
         push!(nn_l, n * n)
     end
-    
+
     return nn_l
 end
 
@@ -105,9 +123,9 @@ function split_hamiltonian(L, N; periodic = false)
         if basis_vector[L] > 1
             HU[i, i] += -0.5 * basis_vector[L] * (basis_vector[L] - 1)
         end
-        
+
         modified_vector = copy(basis_vector)
-        if periodic == true && basis_vector[L] > 0 
+        if periodic == true && basis_vector[L] > 0
             modified_vector[L] -= 1
             modified_vector[1] += 1
             index = find_index(modified_vector)
@@ -162,7 +180,7 @@ function hopping(L, N; periodic = false)
                 HJ[index, i] = HJ[i, index]
             end
         end
-        
+
         if periodic == true && basis_vector[L] > 0
             modified_vector = copy(basis_vector)
             modified_vector[L] -= 1
@@ -212,7 +230,7 @@ function reflect(L, N)
         if i != 1
            next!(basis_vector)
         end
-        
+
         R[i, find_index(reverse(basis_vector))] = 1.
     end
 
@@ -229,7 +247,7 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
     HU = spzeros(dim, dim)
     basis_vector = zeros(Int64, sites)
     basis_vector[1] = N
-    
+
     if periodic == 0
         for i in 1:dim
             if i != 1
@@ -248,7 +266,7 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
                             HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1])
                             HJ[index, i] = HJ[i, index]
                         end
-                        
+
                         if k < L2
                             modified_vector = copy(basis_vector)
                             modified_vector[site] -= 1
@@ -258,14 +276,14 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
                             HJ[index, i] = HJ[i, index]
                         end
                     end
-                    
+
                     if basis_vector[site] > 1
                         HU[i, i] += -0.5 * basis_vector[site] * (basis_vector[site] - 1)
                     end
                 end
             end
         end
-        
+
     elseif periodic == 1
         for i in 1:dim
             if i != 1
@@ -291,7 +309,7 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
                             HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1 - L1])
                             HJ[index, i] = HJ[i, index]
                         end
-                        
+
                         if k < L2
                             modified_vector = copy(basis_vector)
                             modified_vector[site] -= 1
@@ -301,7 +319,7 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
                             HJ[index, i] = HJ[i, index]
                         end
                     end
-                    
+
                     if basis_vector[site] > 1
                         HU[i, i] += -0.5 * basis_vector[site] * (basis_vector[site] - 1)
                     end
@@ -333,7 +351,7 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
                             HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1 - L1])
                             HJ[index, i] = HJ[i, index]
                         end
-                        
+
                         if k < L2
                             modified_vector = copy(basis_vector)
                             modified_vector[site] -= 1
@@ -350,7 +368,7 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
                             HJ[index, i] = HJ[i, index]
                         end
                     end
-                    
+
                     if basis_vector[site] > 1
                         HU[i, i] += -0.5 * basis_vector[site] * (basis_vector[site] - 1)
                     end
@@ -358,7 +376,7 @@ function split_hamiltonian_2D(L1, L2, N; periodic = 0)
             end
         end
     end
-    
+
     return HU, HJ
 end
 
@@ -665,7 +683,7 @@ function disorder_open(L, N; return_min = false, dis = 2. .* rand(L) .- 1.)
         else
             return HD, argmin(dis)
         end
-        
+
         done += ndim
     end
 end
@@ -704,8 +722,8 @@ function split_hamiltonian_open(L, N; periodic = false)
             if basis_vector[L] > 1
                 HU[i + done, i + done] += -0.5 * basis_vector[L] * (basis_vector[L] - 1)
             end
-            
-            if periodic == true && basis_vector[L] > 0 
+
+            if periodic == true && basis_vector[L] > 0
                 modified_vector[L] -= 1
                 modified_vector[1] += 1
                 index = find_index_open(modified_vector)
@@ -713,10 +731,10 @@ function split_hamiltonian_open(L, N; periodic = false)
                 HJ[index, i + done] = HJ[i + done, index]
             end
         end
-        
+
         done += ndim
     end
-    
+
     return HU, HJ
 end
 
@@ -743,10 +761,10 @@ function annihilation(L, N)
                 end
             end
         end
-        
+
         done += ndim
     end
-    
+
     return a
 end
 
@@ -762,13 +780,13 @@ function number_open(L, N, site)
             if i != 1
                next!(basis_vector)
             end
-            
+
             n_l[i + done, i + done] += basis_vector[site]
         end
-        
+
         done += ndim
     end
-    
+
     return n_l
 end
 
@@ -778,9 +796,6 @@ function numbers_open(L, N)
     for l in 1:L
         push!(n_l, number_open(L, N, l))
     end
-    
+
     return n_l
 end
-
-
-

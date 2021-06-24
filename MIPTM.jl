@@ -1,155 +1,74 @@
 module MIPTM
-	using DifferentialEquations, IterTools, LinearAlgebra
+	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays
 	using Statistics: mean
+	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
-	export Parameters, ParametersConstructor, NewProbParameters, kronForMany, calcMean, calcMeanAndVar, ensSolToList, expVal, schrodinger
-	export MIPT, vonNeumann, entanglementAndMeasProbability, vonNeumannHalfOfSystem
+	export Parameters, ParametersConstructor, calcMean, calcMeanAndVar, expVal
+	export MIPT, generateProjectionOperators, measurementEffect!, solveEveryTimeStep
+
+	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
 
 	struct TimeData
     	dt::Float64
-    	Δt::Tuple{Float64,Float64}
-    	times::StepRangeLen{Float64,Base.TwicePrecision{Float64},Base.TwicePrecision{Float64}}
-    	function TimeData(startTime::Float64, dt::Float64, endTime::Float64)
-			new(dt, (startTime, endTime), startTime:dt:endTime)
+    	steps::Int64
+    	times::Array{Float64, 1}
+		measIndexes::Array{Int64, 1}
+    	function TimeData(dt::Float64, endTime::Float64, f::Float64)
+			times = collect(0.0:dt:endTime)
+			steps = length(times)
+			measTimes = collect(1/f:1/f:endTime)
+			measIndexes = collectMeasIndexes(times, measTimes)
+			new(dt, steps, times, measIndexes)
     	end
     end
-	struct Operators
-		n::Array{Complex{Float64},2}
-		nAll::Array{Complex{Float64},2}
-		n𝐼::Array{Array{Complex{Float64},2},1}
-		measOp::Array{Array{Array{Complex{Float64},2},1},1}
-		a::Array{Complex{Float64},2}
-		ad::Array{Complex{Float64},2}
-		𝐼::Array{Complex{Float64},2}
-		function Operators(s::Int64, numOfSys::Int64, measOp::Array{Array{Complex{Float64},2},1})
-			𝐼 = makeI(s)
-		    a = lowOp(s)
-		    ad = copy(a')
-		    n = ad*a
-			n𝐼 = listOfOperators(n, numOfSys, 𝐼)
-			op = makeSetOfMeasurementOperators(measOp, numOfSys, 𝐼)
-		    nAll =  sum(n𝐼)
-			new(n, nAll, n𝐼, op, a, ad, 𝐼)
+	function collectMeasIndexes(times, measTimes)
+		reversedTimes = reverse(measTimes)
+		lastVal = pop!(reversedTimes)
+		out = []
+		for i in 1:length(times)
+			if length(measTimes) == 0
+				break
+			elseif times[i] > lastVal
+				lastVal = pop!(reversedTimes)
+				push!(out, i)
+			end
 		end
+		out
 	end
 	struct Parameters
-		numOfSys::Int64 #Number of systems
-		s::Int64 #Max size of one system
-		dim::Int64 #The dimension of the total system
-		Γ::Float64 #Probability of measuring one site
+		L::Int64 #Number of sites
+		N::Int64 #Number of bosons
+		sdim::Int64
+		p::Float64 #Probability of measuring one site
+		f::Float64 #Frequency of measurements
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
-		atol::Float64
-		rtol::Float64
-		op::Operators #Some usefull operators
-		𝐻::Array{Complex{Float64},2}
+		measOp::Array{Any,1}
+		𝐻::SparseMatrixCSC{Float64,Int64}
 		Ψ₀::Array{Complex{Float64},1}
 	end
-	function ParametersConstructor(;t::Tuple{Float64,Float64,Float64},
-		traj::Int64, atol=1e-3, rtol=1e-3, Γ::Float64, ω::Float64,
-		U::Float64, J::Float64, Ψ₀::Array{Array{Complex{Float64},1},1},
-		measOp::Array{Array{Complex{Float64},2},1})
-		numOfSys = length(Ψ₀)
-		s = length(Ψ₀[1])
-		dim = s^numOfSys
-		op = Operators(s, numOfSys, measOp)
-		t = TimeData(t[1], t[2], t[3])
-		Parameters(numOfSys, s, dim, Γ, t, traj, atol, rtol, op, boseHubbard(ω=ω, U=U, J=J, n=op.n, a=op.a, 𝐼=op.𝐼, numOfSys=numOfSys), kronForMany(Ψ₀))
+	function ParametersConstructor(;L::Int64, N::Int64, dt::Float64, time::Float64,
+		traj=1, p::Float64, f::Float64, U::Float64, J::Float64, measOp::Array{Any,1}, Ψ₀::StateType, sdim::Int64)
+		t = TimeData(dt, time, f)
+		HU, HJ = split_hamiltonian(L, N)
+		𝐻 = U .* HU .+ J .* HJ
+		Parameters(L, N, sdim, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀))
 	end
 	function NewProbParameters(;p::Parameters, Γ::Float64)
 		Parameters(p.numOfSys, p.s, p.dim, Γ, p.t, p.traj, p.atol, p.rtol, p.op, p.𝐻, p.Ψ₀)
 	end
-	function makeSetOfMeasurementOperators(operators, numOfSys, 𝐼)
-		measOp = []
-		for i in 1:numOfSys
+	function generateProjectionOperators(L, N)
+		out = []
+		for l in 1:L
 			oneSiteOperators = []
-			for j in 1:length(operators)
-				push!(oneSiteOperators, kronForMany(operators[j], 𝐼, i, numOfSys))
+			for n in 0:N
+				push!(oneSiteOperators, projector(L, N, l, n))
 			end
-			push!(measOp, oneSiteOperators)
+			push!(out, oneSiteOperators)
 		end
-		measOp
+		out
 	end
-	function lowOp(s::Int64) #â
-		a = zeros(s, s)
-		for i in 1:s-1
-			a[i, i + 1] = sqrt(i)
-		end
-		complex(a)
-	end
-	function makeI(size::Int64)
-        𝐼 = (1.0 + 0.0*im)*Matrix(I, size, size)
-    end
-	function boseHubbard(;ω::Float64, U::Float64, J::Float64, n::Array{Complex{Float64},2}, a::Array{Complex{Float64},2}, 𝐼::Array{Complex{Float64},2}, numOfSys::Int64)
-		nᵢ = kronForMany(n, 𝐼, 1, numOfSys)
-		𝐼All = kronForMany(𝐼, 𝐼, 1, numOfSys)
-		H = ω*nᵢ - U*0.5*nᵢ*(nᵢ-𝐼All)
-		for i in 2:numOfSys
-			nᵢ = kronForMany(n, 𝐼, i, numOfSys)
-			aᵢ₋₁ = kronForMany(a, 𝐼, i - 1, numOfSys)
-			aᵢ = kronForMany(a, 𝐼, i, numOfSys)
-			H .+= ω*nᵢ - U*0.5*nᵢ*(nᵢ-𝐼All) + J*(aᵢ₋₁*aᵢ' + aᵢ₋₁'*aᵢ)
-		end
-		H
-	end
-	function partialTrace(ρ::Array{Complex{Float64},2}, aDim::Int64, bDim::Int64; traceOverB::Bool=true)::Array{Complex{Float64},2}
-        if traceOverB
-            A = complex(zeros(aDim, aDim))
-            for i in 1:aDim
-                iᵨ = 1 + (i - 1)*bDim
-                for j in 1:aDim
-                    jᵨ = 1 + (j - 1)*bDim
-                    for d in 0:bDim-1
-                        A[i, j] += ρ[iᵨ+d, jᵨ+d]
-                    end
-                end
-            end
-            A
-        else
-            B = complex(zeros(bDim, bDim))
-            for i in 1:bDim
-                for j in 1:bDim
-                    for d in 0:aDim-1
-                        B[i, j] += ρ[i + d*bDim, j + d*bDim]
-                    end
-                end
-            end
-            B
-        end
-    end
-	function kronForMany(m::Array{Complex{Float64},2}, 𝐼, index, numOfSys)::Array{Complex{Float64},2}
-        if index == numOfSys
-            s = m
-        else
-            s = 𝐼
-        end
-        for i in reverse(1:numOfSys-1)
-            if i == index
-                s = kron(m, s)
-            else
-                s = kron(𝐼, s)
-            end
-        end
-        s
-    end
-	function kronForMany(m::Union{Array{Array{Complex{Float64},2},1}, Array{Array{Complex{Float64},1},1}})
-        s = m[end]
-        for (isFirst, mᵢ) in flagfirst(reverse(m))
-            if isFirst
-            else
-                s = kron(mᵢ, s)
-            end
-        end
-        s
-    end
-	function listOfOperators(op::Array{Complex{Float64},2}, numOfSys::Int64, 𝐼::Array{Complex{Float64},2})::Array{Array{Complex{Float64},2},1}
-        res = []
-        for i in 1:numOfSys
-            push!(res, kronForMany(op, 𝐼, i, numOfSys))
-        end
-        res
-    end
-	function expVal(s::Array{Complex{Float64},1}, op::Array{Complex{Float64},2})#Jos s on ket
+	function expVal(s::Array{Complex{Float64},1}, op::SparseMatrixCSC{Float64,Int64})#Jos s on ket
 		real(s' * op * s)
 	end
 	function expVal(ρ::Array{Complex{Float64},2}, op::Array{Complex{Float64},2})#Tiheysoperaattorille
@@ -181,52 +100,19 @@ module MIPTM
 		var .= var./numOfVal .- mean.^2
         mean, var
     end
-	function vonNeumann(Ψ::Array{Complex{Float64},1}, aDim::Int64, bDim::Int64)
-		ρₐ = partialTrace(Ψ*Ψ', aDim, bDim)
-		F = svd(ρₐ)
-		-dot(real(F.S), vonNeumannlog.(real(F.S)))
-	end
-	function vonNeumannlog(x)
-		if x == 0
-			return 1
-		else
-			return log(x)
-		end
-	end
-	function vonNeumannHalfOfSystem(Ψ::Array{Complex{Float64},1}, p::Parameters)
-		halfOfSystems = Int(floor((p.numOfSys / 2)))
-		vonNeumann(Ψ, p.s^halfOfSystems, p.s^(p.numOfSys - halfOfSystems))
-	end
-	function ensSolToList(ensSol::EnsembleSolution, times)::Array{Array{Array{Complex{Float64},1},1},1}
-        res = []
-		for sol in ensSol
-			oneSol = []
-			for t in times
-				push!(oneSol, sol(t))
-			end
-			push!(res, oneSol)
-        end
-		res
-    end
-	function schrodinger(Ψ, p, t)
-		-1im * p.𝐻 * Ψ
-	end
-	function measurementEffect(integrator)
-		Ψ = integrator.u
-		p = integrator.p
-		dt = integrator.t - integrator.tprev
-		for i in 1:p.numOfSys
-			if rand(Float64) < p.Γ*dt  #Does the measurement happen?
+	function measurementEffect!(Ψ, p::Parameters)
+		for l in 1:p.L
+			if rand(Float64) < p.p  #Does the measurement happen?
 				probForProjection = rand(Float64)
 				pⱼ = 0 #Probability for a single projection
-				for j in 1:length(p.op.measOp[i])
-					if j == length(p.op.measOp[i])
-						projection!(Ψ, p.op.measOp[i][j])
+				for j in 1:length(p.measOp[l])
+					if j == length(p.measOp[l])
+						projection!(Ψ, p.measOp[l][j])
 						break
 					else
-						pⱼ += projectionProbability(Ψ, p.op.measOp[i][j])
+						pⱼ += projectionProbability(Ψ, p.measOp[l][j])
 						if probForProjection < pⱼ
-							projection!(Ψ, p.op.measOp[i][j])
+							projection!(Ψ, p.measOp[l][j])
 							break
 						end
 					end
@@ -240,14 +126,6 @@ module MIPTM
 	end
 	function projectionProbability(Ψ, op)
 		expVal(Ψ, op' * op)
-	end
-	function MIPT(p::Parameters)
-		condition(u, t, integrator) = true
-		cb = DiscreteCallback(condition, measurementEffect, save_positions=(true,true))
-		prob = ODEProblem(schrodinger, p.Ψ₀, p.t.Δt, p, saveat = p.t.dt)
-		enProb = EnsembleProblem(prob, safetycopy=true)
-		sol = solve(enProb, SRA1(), abstol=p.atol, rtol=p.rtol, EnsembleThreads(), trajectories=p.traj, callback=cb)
-		ensSolToList(sol, p.t.times)
 	end
 	function lastValues(sol)
 		res = []
@@ -265,5 +143,27 @@ module MIPTM
 			push!(res, calcMean(sol, x -> vonNeumann(x, param.s^halfOfSystems, param.s^(param.numOfSys - halfOfSystems)))[1])
 		end
 		res
+	end
+	function solveEveryTimeStep(p::Parameters)
+		state = copy(p.Ψ₀)
+		out = [state]
+		for i in 2:p.t.steps
+			state = propagate(p.𝐻, state, p.sdim, p.t.dt)
+			if i in p.t.measIndexes
+				measurementEffect!(state, p)
+			end
+			push!(out, state)
+		end
+		out
+	end
+	function solveLastTimeStep(p::Parameters)
+		state = copy(p.Ψ₀)
+		for i in 2:p.t.steps
+			state = propagate(p.𝐻, state, p.sdim, p.t.dt)
+			if i in p.t.measIndexes
+				measurementEffect!(state, p)
+			end
+		end
+		state
 	end
 end

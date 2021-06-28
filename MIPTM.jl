@@ -166,4 +166,18 @@ module MIPTM
 		end
 		state
 	end
+	function MIPT(p::Parameters)
+		out = arrayForEveryThread()
+		Threads.@threads for _ in 1:p.traj
+			push!(out[Threads.threadid()], solveEveryTimeStep(p))
+		end
+		return reduce(vcat, out)
+	end
+	function arrayForEveryThread()
+		a = []
+		for _ in 1:Threads.nthreads()
+			push!(a, [])
+		end
+		return a
+	end
 end

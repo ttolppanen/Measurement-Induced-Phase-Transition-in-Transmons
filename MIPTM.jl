@@ -3,9 +3,11 @@ module MIPTM
 	using Statistics: mean
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
-	export Parameters, ParametersConstructor, calcMean, calcMeanAndVar, expVal
-	export MIPT, generateProjectionOperators, measurementEffect!, solveEveryTimeStep, generateSingleSite
-	export singleSubspaceProjectors
+	export Parameters, ParametersConstructor, ParametersConstructorWithP
+	export calcMean, calcMeanAndVar, expVal
+	export MIPT, MIPTProjectAfterEveryTimeStep, MIPTOnlyLastValue
+	export singleSubspaceProjectors, onesState, zeroOneState
+	export generateProjectionOperators, generateSingleSite
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
 
@@ -55,8 +57,8 @@ module MIPTM
 		𝐻 = U .* HU .+ J .* HJ
 		return Parameters(L, N, sdim, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀))
 	end
-	function NewProbParameters(;p::Parameters, Γ::Float64)
-		return Parameters(p.numOfSys, p.s, p.dim, Γ, p.t, p.traj, p.atol, p.rtol, p.op, p.𝐻, p.Ψ₀)
+	function ParametersConstructorWithP(p::Parameters, prob::Float64)
+		return Parameters(p.L, p.N, p.sdim, prob, p.f, p.t, p.traj, p.measOp, p.𝐻, p.Ψ₀)
 	end
 	function generateProjectionOperators(L, N)
 		out = []
@@ -81,6 +83,20 @@ module MIPTM
 	function singleSubspaceProjectors(L, N)
 		f(L, N, l) = projector(L, N, l, 1)
 		return generateSingleSite(L, N, f)
+	end
+	function onesState(L::Int64)
+		state = zeros(dimension(L, L))
+		state[find_index(ones(Int64, L))] = 1.;
+		return state
+	end
+	function zeroOneState(L::Int64, N::Int64)
+		basisState = []
+		for i in 1:L
+			push!(basisState, i%2)
+		end
+		state = zeros(dimension(L, N))
+		state[find_index(basisState)] = 1.;
+		return state
 	end
 	function expVal(s::Array{Complex{Float64},1}, op::SparseMatrixCSC{Float64,Int64})#Jos s on ket
 		return real(s' * op * s)
@@ -176,6 +192,16 @@ module MIPTM
 		end
 		return out
 	end
+	function solveEveryTimeStepAndProject(p::Parameters) #Projection after every time-step
+		state = copy(p.Ψ₀)
+		out = [state]
+		for i in 2:p.t.steps
+			state = propagate(p.𝐻, state, p.sdim, p.t.dt)
+			measurementEffect!(state, p)
+			push!(out, state)
+		end
+		return out
+	end
 	function solveLastTimeStep(p::Parameters)
 		state = copy(p.Ψ₀)
 		for i in 2:p.t.steps
@@ -184,12 +210,26 @@ module MIPTM
 				measurementEffect!(state, p)
 			end
 		end
-		return state
+		return [state]
 	end
 	function MIPT(p::Parameters)
 		out = arrayForEveryThread()
 		Threads.@threads for _ in 1:p.traj
 			push!(out[Threads.threadid()], solveEveryTimeStep(p))
+		end
+		return reduce(vcat, out)
+	end
+	function MIPTOnlyLastValue(p::Parameters)
+		out = arrayForEveryThread()
+		Threads.@threads for _ in 1:p.traj
+			push!(out[Threads.threadid()], solveLastTimeStep(p))
+		end
+		return reduce(vcat, out)
+	end
+	function MIPTProjectAfterEveryTimeStep(p::Parameters)
+		out = arrayForEveryThread()
+		Threads.@threads for _ in 1:p.traj
+			push!(out[Threads.threadid()], solveEveryTimeStepAndProject(p))
 		end
 		return reduce(vcat, out)
 	end

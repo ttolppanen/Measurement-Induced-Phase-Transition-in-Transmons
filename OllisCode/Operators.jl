@@ -1,5 +1,24 @@
 using SparseArrays
 include("Basis.jl")
+#=
+function generalizeSingleSiteOperator(L, N, l, singleSiteOperator) #l=which site
+    d = dimension(L, N)
+    totalSystemOperator = spzeros(d, d) #create a d x d sparse matrix
+    ket = zeros(Int64, L) #|i><j|
+    ket[1] = N
+    for i in 1:d
+        bra = zeros(Int64, L) #|i><j|
+        bra[1] = N
+        for j in 1:d
+            si = ket[l] + 1; sj = bra[l] + 1;
+            totalSystemOperator[i, j] = singleSiteOperator[si, sj]
+            next!(bra)
+        end
+        next!(ket)
+    end
+    return totalSystemOperator
+end
+=#
 
 function projector(L, N, l, n)
     dim = dimension(L, N)

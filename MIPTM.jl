@@ -5,7 +5,7 @@ module MIPTM
 
 	export Parameters, ParametersConstructor, ParametersConstructorWithP
 	export calcMean, calcMeanAndVar, expVal
-	export MIPT, MIPTProjectAfterEveryTimeStep, MIPTOnlyLastValue
+	export MIPT, MIPTProjectAfterEveryTimeStep, MIPTOnlyLastValue, MIPTOnlyLastValueAndProject
 	export singleSubspaceProjectors, onesState, zeroOneState
 	export generateProjectionOperators, generateSingleSite
 
@@ -205,17 +205,35 @@ module MIPTM
 	function solveLastTimeStep(p::Parameters)
 		state = copy(p.Ψ₀)
 		for i in 2:p.t.steps
-			state = propagate(p.𝐻, state, p.sdim, p.t.dt)
+			state .= propagate(p.𝐻, state, p.sdim, p.t.dt)
 			if i in p.t.measIndexes
 				measurementEffect!(state, p)
 			end
 		end
 		return [state]
 	end
-	function MIPT(p::Parameters)
+	function solveLastTimeStepAndProject(p::Parameters)
+		state = copy(p.Ψ₀)
+		for i in 2:p.t.steps
+			state .= propagate(p.𝐻, state, p.sdim, p.t.dt)
+			measurementEffect!(state, p)
+		end
+		return [state]
+	end
+	function MIPT(p::Parameters; onlyLastValue=false, projectAfterTimeStep=false)
 		out = arrayForEveryThread()
+
+		f = solveEveryTimeStep
+		if onlyLastValue && projectAfterTimeStep
+			f = solveLastTimeStepAndProject
+		elseif onlyLastValue
+			f = solveLastTimeStep
+		elseif projectAfterTimeStep
+			f = solveEveryTimeStepAndProject
+		end
+
 		Threads.@threads for _ in 1:p.traj
-			push!(out[Threads.threadid()], solveEveryTimeStep(p))
+			push!(out[Threads.threadid()], f(p))
 		end
 		return reduce(vcat, out)
 	end
@@ -233,6 +251,13 @@ module MIPTM
 		end
 		return reduce(vcat, out)
 	end
+	function MIPTOnlyLastValueAndProject(p::Parameters)
+		out = arrayForEveryThread()
+		Threads.@threads for _ in 1:p.traj
+			push!(out[Threads.threadid()], solveLastTimeStepAndProject(p))
+		end
+		return reduce(vcat, out)
+	end
 	function arrayForEveryThread()
 		a = []
 		for _ in 1:Threads.nthreads()
@@ -241,3 +266,27 @@ module MIPTM
 		return a
 	end
 end
+
+#=
+function MIPTOnlyLastValue(p::Parameters)
+	out = arrayForEveryThread()
+	Threads.@threads for _ in 1:p.traj
+		push!(out[Threads.threadid()], solveLastTimeStep(p))
+	end
+	return reduce(vcat, out)
+end
+function MIPTProjectAfterEveryTimeStep(p::Parameters)
+	out = arrayForEveryThread()
+	Threads.@threads for _ in 1:p.traj
+		push!(out[Threads.threadid()], solveEveryTimeStepAndProject(p))
+	end
+	return reduce(vcat, out)
+end
+function MIPTOnlyLastValueAndProject(p::Parameters)
+	out = arrayForEveryThread()
+	Threads.@threads for _ in 1:p.traj
+		push!(out[Threads.threadid()], solveLastTimeStepAndProject(p))
+	end
+	return reduce(vcat, out)
+end
+=#

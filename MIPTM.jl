@@ -5,7 +5,7 @@ module MIPTM
 
 	export Parameters, ParametersConstructor, ParametersConstructorWithP
 	export calcMean, calcMeanAndVar, expVal
-	export MIPT, MIPTProjectAfterEveryTimeStep, MIPTOnlyLastValue, MIPTOnlyLastValueAndProject
+	export MIPT
 	export singleSubspaceProjectors, onesState, zeroOneState
 	export generateProjectionOperators, generateSingleSite
 
@@ -124,14 +124,24 @@ module MIPTM
     end
 	function calcMeanAndVar(sol, f::Function)
 		numOfVal = length(sol)
+
+		threadsMean = []
+		threadsVar = []
+		for _ in 1:Threads.nthreads()
+			push!(threadsMean, zeros(length(sol[1])))
+			push!(threadsVar, zeros(length(sol[1])))
+		end
+
 		fVal = f.(sol[1])
 		mean = fVal
 		var = fVal.^2
-        for i in 2:numOfVal
-            fVal = f.(sol[i])
-            mean .+= fVal
-            var .+= fVal.^2
+		Threads.@threads for i in 1:numOfVal
+			fVal = f.(sol[i])
+            threadsMean[Threads.threadid()] .+= fVal
+			threadsVar[Threads.threadid()] .+= fVal.^2
         end
+		mean = sum(threadsMean)
+		var = sum(threadsVar)
 		mean .= mean./numOfVal
 		var .= var./numOfVal .- mean.^2
         return mean, var

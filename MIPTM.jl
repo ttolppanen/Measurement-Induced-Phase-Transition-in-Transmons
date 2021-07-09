@@ -90,7 +90,7 @@ module MIPTM
 		return state
 	end
 	function zeroOneState(L::Int64, N::Int64)
-		basisState = []
+		basisState::Array{Int64,1} = []
 		for i in 1:L
 			push!(basisState, i%2)
 		end

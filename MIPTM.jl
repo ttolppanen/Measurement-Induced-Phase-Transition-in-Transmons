@@ -1,5 +1,5 @@
 module MIPTM
-	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays
+	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays, Plots
 	using Statistics: mean
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
@@ -8,6 +8,7 @@ module MIPTM
 	export MIPT
 	export singleSubspaceProjectors, onesState, zeroOneState
 	export generateProjectionOperators, generateSingleSite
+	export ELVSavefig
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
 
@@ -132,9 +133,6 @@ module MIPTM
 			push!(threadsVar, zeros(length(sol[1])))
 		end
 
-		fVal = f.(sol[1])
-		mean = fVal
-		var = fVal.^2
 		Threads.@threads for i in 1:numOfVal
 			fVal = f.(sol[i])
             threadsMean[Threads.threadid()] .+= fVal
@@ -275,8 +273,24 @@ module MIPTM
 		end
 		return a
 	end
+	function ELVSavefig(;title::String, p::Parameters, initialState::String, notes="")
+		folderName = "ELV_" * title
+		path = pwd() * "/Plots/" * folderName
+		mkpath(path)
+		io = open(path * "/data.txt", "w")
+		println(io, "L = " * string(p.L))
+		println(io, "N = " * string(p.N))
+		println(io, "sdim = " * string(p.sdim))
+		println(io, "p = " * string(p.p))
+		println(io, "f = " * string(p.f))
+		println(io, "dt = " * string(p.t.dt))
+		println(io, "t = " * string(p.t.times[end]))
+		println(io, "Ψ₀ = " * initialState)
+		println(io, "\n" * notes)
+		close(io)
+		savefig(pwd() * "/Plots/" * folderName * "/" * folderName * ".png")
+	end
 end
-
 #=
 function MIPTOnlyLastValue(p::Parameters)
 	out = arrayForEveryThread()

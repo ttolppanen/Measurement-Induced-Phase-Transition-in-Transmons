@@ -57,11 +57,12 @@ module MIPTM
 		μ::Float64 #mean for disorder
 		σ::Float64 #stantard deviation
 	end
-	function ParametersConstructor(;L::Int64, N::Int64, dt::Float64, time::Float64,
+	function ParametersConstructor(;L::Int64, N::Int64, cap=N, dt::Float64, time::Float64,
 		traj=1, p::Float64, f::Float64, U::Float64, J::Float64, measOp::Array{Any,1},
 		Ψ₀::StateType, sdim::Int64, mean=0.0, stantardDeviation=0.0)
 		t = TimeData(dt, time, f)
-		HU, HJ = split_hamiltonian(L, N)
+		HU = interaction(L, N, cap)
+		HJ = hopping(L, N, cap)
 		𝐻 = U .* HU .+ J .* HJ
 		return Parameters(L, N, sdim, U, J, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀), mean, stantardDeviation)
 	end
@@ -92,18 +93,18 @@ module MIPTM
 		f(L, N, l) = projector(L, N, l, 1)
 		return generateSingleSite(L, N, f)
 	end
-	function onesState(L::Int64)
-		state = zeros(dimension(L, L))
-		state[find_index(ones(Int64, L))] = 1.;
+	function onesState(L::Int64, cap=L)
+		state = zeros(dimensions(L, L, cap))
+		state[find_index(ones(Int64, L), cap)] = 1.;
 		return state
 	end
-	function zeroOneState(L::Int64, N::Int64)
+	function zeroOneState(L::Int64, N::Int64, cap=N)
 		basisState::Array{Int64,1} = []
 		for i in 1:L
 			push!(basisState, i%2)
 		end
-		state = zeros(dimension(L, N))
-		state[find_index(basisState)] = 1.;
+		state = zeros(dimensions(L, N, cap))
+		state[find_index(basisState, cap)] = 1.;
 		return state
 	end
 	function expVal(s::Array{Complex{Float64},1}, op::SparseMatrixCSC{Float64,Int64})#Jos s on ket

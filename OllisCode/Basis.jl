@@ -1,3 +1,5 @@
+using Combinatorics
+
 function isThereTooManyBosons(v, cap::Int64)
     for i in v
         if i > cap
@@ -6,25 +8,30 @@ function isThereTooManyBosons(v, cap::Int64)
     end
     return false
 end
-function next_cap!(v, cap)
-    next!(v)
-    if isThereTooManyBosons(v, cap)
-        next_cap!(v)
+function next!(v, cap)
+    N = sum(v)
+    nextOlli!(v)
+    if N != cap && isThereTooManyBosons(v, cap)
+        next!(v)
     end
 end
-function find_index_cap(v, cap)
+function find_index(v, cap)
     N = sum(v)
     L = length(v)
-    loopState = first_state(L, N, cap)
-    d = binomial(L, N)
-    for i in 1:d
-        if v == loopState
-            return i
+    if N == cap
+        return find_indexOlli(v)
+    else
+        loopState = first_state(L, N, cap)
+        d = binomial(L, N)
+        for i in 1:d
+            if v == loopState
+                return i
+            end
+            q_next!(loopState)
         end
-        q_next!(loopState)
     end
 end
-function first_state(L, N, cap) #cap = max amount of bosons on one site...
+function first_state(L, N, cap)::Vector{Int} #cap = max amount of bosons on one site...
     fullStates = Int(floor(N/cap))
     bosonsLeftOver = N % cap
     return [cap * ones(fullStates); bosonsLeftOver; zeros(L - fullStates - 1)]
@@ -44,19 +51,23 @@ function allPartitions(N, cap)
     return out
 end
 function dimensions(L, N, cap)
-    d = 0
-    p = allPartitions(N, cap)
-    for pᵢ in p
-        dAdd = factorial(L) / factorial(L - sum(pᵢ))
-        for i in pᵢ
-            dAdd /= factorial(i)
+    if cap == N
+        return dimensionOlli(L, N)
+    else
+        d = 0
+        p = allPartitions(N, cap)
+        for pᵢ in p
+            dAdd = factorial(L) / factorial(L - sum(pᵢ))
+            for i in pᵢ
+                dAdd /= factorial(i)
+            end
+            d += dAdd
         end
-        d += dAdd
+        return Int(d)
     end
-    return Int(d)
 end
 
-function next!(vector)
+function nextOlli!(vector)
     L = length(vector)
     N = sum(vector)
     nk = 1
@@ -78,7 +89,7 @@ function next!(vector)
 end
 
 
-function dimension(L, N)::Int
+function dimensionOlli(L, N)::Int
     d = 1.
     for i in 1:min(N, L - 1)
         d *= (L + N - i) / i
@@ -91,14 +102,14 @@ end
 function dimension_open(L, N)::Int
     dim = 1
     for n in 1:N
-        dim += dimension(L, n)
+        dim += dimensionOlli(L, n)
     end
 
     return dim
 end
 
 
-function find_index(vector::Vector{Int})::Int
+function find_indexOlli(vector::Vector{Int})::Int
     L = size(vector, 1)
     N = sum(vector)
     index = 1
@@ -117,7 +128,7 @@ function find_index_open(vector::Vector{Int})::Int64
     if N > 0
         index = 2
         for i in 1:N - 1
-            index += dimension(L, i)
+            index += dimensionOlli(L, i)
         end
 
         for k in 1:L - 1

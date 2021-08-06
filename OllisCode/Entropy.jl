@@ -1,19 +1,19 @@
 using LinearAlgebra, SparseArrays, KrylovKit
 include.(["Basis.jl", "Operators.jl"])
 
-function entanglement_entropy(L, N, state, sites) 
+function entanglement_entropy(L, N, state, sites)
     sub_dim = dimension_open(sites, N)
     schmidt = zeros(ComplexF64, sub_dim, dimension_open(L - sites, N))
     basis_vector = zeros(Int64, L)
     basis_vector[1] = N
-    for i in 1:dimension(L, N)
+    for i in 1:dimensionOlli(L, N)
         if i != 1
-            next!(basis_vector)
+            nextOlli!(basis_vector)
         end
-        
+
         schmidt[find_index_open(basis_vector[1:sites]), find_index_open(basis_vector[sites + 1: end])] = state[i]
     end
-    
+
     S = svd(schmidt).S
     entropy = 0.0
     for i in 1:sub_dim
@@ -24,7 +24,7 @@ function entanglement_entropy(L, N, state, sites)
             break
         end
     end
-    
+
     return entropy
 end
 
@@ -39,5 +39,3 @@ function test()
     println(entanglement_entropy(L, N, state, 4))
     println("should be bit above ln 2 = 0.693...")
 end
-
-

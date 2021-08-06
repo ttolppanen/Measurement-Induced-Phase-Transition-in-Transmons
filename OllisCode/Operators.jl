@@ -20,14 +20,13 @@ function generalizeSingleSiteOperator(L, N, l, singleSiteOperator) #l=which site
 end
 =#
 
-function projector(L, N, l, n)
-    dim = dimension(L, N)
+function projector(L, N, l, n, cap=N)
+    dim = dimensions(L, N, cap)
     P = spzeros(dim, dim)
-    basis_vector = zeros(Int64, L)
-    basis_vector[1] = N
+    basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
-           next!(basis_vector)
+           next!(basis_vector, cap)
         end
 
         if basis_vector[l] == n
@@ -38,14 +37,13 @@ function projector(L, N, l, n)
     return P
 end
 
-function number(L, N, site)
-    dim = dimension(L, N)
+function number(L, N, site, cap=N)
+    dim = dimensions(L, N, cap)
     n = spzeros(dim, dim)
-    basis_vector = zeros(Int64, L)
-    basis_vector[1] = N
+    basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
-           next!(basis_vector)
+           next!(basis_vector, cap)
         end
 
         n[i, i] += basis_vector[site]
@@ -157,14 +155,13 @@ function split_hamiltonian(L, N; periodic = false)
 end
 
 
-function interaction(L, N)
-    dim = dimension(L, N)
+function interaction(L, N, cap=N)
+    dim = dimensions(L, N, cap)
     HU = spzeros(dim, dim)
-    basis_vector = zeros(Int64, L)
-    basis_vector[1] = N
+    basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
-           next!(basis_vector)
+           next!(basis_vector, cap)
         end
 
         for site in 1:L
@@ -179,14 +176,13 @@ function interaction(L, N)
 end
 
 
-function hopping(L, N; periodic = false)
-    dim = dimension(L, N)
+function hopping(L, N, cap=N; periodic = false)
+    dim = dimensions(L, N, cap)
     HJ = spzeros(dim, dim)
-    basis_vector = zeros(Int64, L)
-    basis_vector[1] = N
+    basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
-           next!(basis_vector)
+           next!(basis_vector, cap)
         end
 
         for site in 1:L - 1
@@ -194,7 +190,7 @@ function hopping(L, N; periodic = false)
             if basis_vector[site] > 0
                 modified_vector[site] -= 1
                 modified_vector[site + 1] += 1
-                index = find_index(modified_vector)
+                index = find_index(modified_vector, cap)
                 HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1])
                 HJ[index, i] = HJ[i, index]
             end
@@ -204,7 +200,7 @@ function hopping(L, N; periodic = false)
             modified_vector = copy(basis_vector)
             modified_vector[L] -= 1
             modified_vector[1] += 1
-            index = find_index(modified_vector)
+            index = find_index(modified_vector, cap)
             HJ[i, index] = sqrt(basis_vector[L] * modified_vector[1])
             HJ[index, i] = HJ[i, index]
         end
@@ -215,14 +211,13 @@ end
 
 
 
-function disorder(L, N; return_min = false, dis = 2. .* rand(L) .- 1.)
-    dim = dimension(L, N)
+function disorder(L, N, cap=N; return_min = false, dis = 2. .* rand(L) .- 1.)
+    dim = dimensions(L, N, cap)
     HD = spzeros(dim, dim)
-    basis_vector = zeros(Int64, L)
-    basis_vector[1] = N
+    basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
-           next!(basis_vector)
+           next!(basis_vector, cap)
         end
 
         for site in 1:L

@@ -270,46 +270,6 @@ module MIPTM
 		close(io)
 		savefig(pwd() * "/Plots/" * folderName * "/" * folderName * ".png")
 	end
-
-	#Changes to Ollis code to work with two level systems...
-	function checkIfQubit(v)
-		for i in v
-			if i > 1
-				return false
-			end
-		end
-		return true
-	end
-	function q_next!(v)
-		next!(v)
-		if(!checkIfQubit(v))
-			q_next!(v)
-		end
-	end
-	function q_find_index(v)
-		N = sum(v)
-		L = length(v)
-		loopState = [ones(N); zeros(L-N)] #First state initially
-		d = binomial(L, N)
-		for i in 1:d
-			if v == loopState
-				return i
-			end
-			q_next!(loopState)
-		end
-	end
-	function q_isFirstState(v)
-		N = sum(v)
-		for i in 1:N
-			if v[i] != 1
-				return false
-			end
-		end
-		return true
-	end
-	#function q_dimensions(L, N)
-	#	return binomial(L, N)
-	#end
 end
 #=
 function MIPTOnlyLastValue(p::Parameters)

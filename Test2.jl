@@ -1,15 +1,11 @@
 using MIPTM, Plots
-
+function first_state(L, N, cap) #cap = max amount of bosons on one site...
+    fullStates = Int(floor(N/cap))
+    bosonsLeftOver = N % cap
+    return [cap * ones(fullStates); bosonsLeftOver; zeros(L - fullStates - 1)]
+end
 function f()
-	v = [1,0,1,0,1]
-	L = length(v)
-	N = sum(v)
-	d = binomial(L, N)
-	displayVec(v)
-	for i in 1:d
-		q_next!(v)
-		displayVec(v)
-	end
+	display(first_state(8, 8, 7))
 end
 
 function displayVec(v)

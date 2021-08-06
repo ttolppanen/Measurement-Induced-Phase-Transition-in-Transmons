@@ -1,3 +1,61 @@
+function isThereTooManyBosons(v, cap::Int64)
+    for i in v
+        if i > cap
+            return true
+        end
+    end
+    return false
+end
+function next_cap!(v, cap)
+    next!(v)
+    if isThereTooManyBosons(v, cap)
+        next_cap!(v)
+    end
+end
+function find_index_cap(v, cap)
+    N = sum(v)
+    L = length(v)
+    loopState = first_state(L, N, cap)
+    d = binomial(L, N)
+    for i in 1:d
+        if v == loopState
+            return i
+        end
+        q_next!(loopState)
+    end
+end
+function first_state(L, N, cap) #cap = max amount of bosons on one site...
+    fullStates = Int(floor(N/cap))
+    bosonsLeftOver = N % cap
+    return [cap * ones(fullStates); bosonsLeftOver; zeros(L - fullStates - 1)]
+end
+function allPartitions(N, cap)
+    out = []
+    p = collect(partitions(N))
+    for pᵢ in p
+        if length(pᵢ[pᵢ .> cap]) == 0
+            tempOut = []
+            for i in 1:cap
+                push!(tempOut, length(pᵢ[pᵢ .== i]))
+            end
+            push!(out, tempOut)
+        end
+    end
+    return out
+end
+function dimensions(L, N, cap)
+    d = 0
+    p = allPartitions(N, cap)
+    for pᵢ in p
+        dAdd = factorial(L) / factorial(L - sum(pᵢ))
+        for i in pᵢ
+            dAdd /= factorial(i)
+        end
+        d += dAdd
+    end
+    return Int(d)
+end
+
 function next!(vector)
     L = length(vector)
     N = sum(vector)

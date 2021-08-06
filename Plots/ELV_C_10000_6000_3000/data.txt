@@ -1,0 +1,12 @@
+L = 4
+N = 2
+sdim = 10
+p = 0.0
+f = 1.0
+dt = 0.02
+t = 10.0
+Ψ₀ = 0101
+Mean = 0.0
+Stantard Deviation = 1.0
+
+measurement after every timestep, U = 0.14

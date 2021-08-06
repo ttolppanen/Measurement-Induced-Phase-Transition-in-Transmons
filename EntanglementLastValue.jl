@@ -1,4 +1,4 @@
-using Plots, MIPTM
+using Plots, MIPTM, Distributions
 include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl",
 		"OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
@@ -19,7 +19,10 @@ function entanglementAsAFunctionOfP(L, probabilities, traj)
 	state = zeroOneState(L, N)
 	#measOp = singleSubspaceProjectors(L, N)
 	measOp = generateProjectionOperators(L, N)
-	p = ParametersConstructor(L=L, N=N, sdim=10, measOp=measOp, traj=traj, dt=0.02, time=10.0, p=0.0, f=1.0, U=0.14, J=1.0, Ψ₀=state)
+
+	p = ParametersConstructor(L=L, N=N, sdim=10, measOp=measOp, traj=traj, dt=0.02,
+	time=10.0, p=0.0, f=1.0, U=0.14, J=1.0, Ψ₀=state, mean=0.0, stantardDeviation=1.0)
+
 	return calcWithDifferentProb(p, probabilities)
 end
 
@@ -35,6 +38,6 @@ function f!(L, traj)
 	plot!(probabilities, results, ribbon=sqrt.(var), fillalpha=0.15, label="L = $L")
 end
 
-pl, p = f(4, 100)
-f!(6, 60)
-f!(8, 30)
+pl, p = f(4, 10000)
+f!(6, 6000)
+f!(8, 3000)

@@ -1,5 +1,6 @@
 module MIPTM
 	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays, Plots
+	using Distributions
 	using Statistics: mean
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
@@ -9,6 +10,7 @@ module MIPTM
 	export singleSubspaceProjectors, onesState, zeroOneState
 	export generateProjectionOperators, generateSingleSite
 	export ELVSavefig
+	export q_next!, q_find_index
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
 
@@ -43,6 +45,8 @@ module MIPTM
 		L::Int64 #Number of sites
 		N::Int64 #Number of bosons
 		sdim::Int64
+		U::Float64
+		J::Float64
 		p::Float64 #Probability of measuring one site
 		f::Float64 #Frequency of measurements
 		t::TimeData #The duration of simulation, and also the time-step
@@ -50,16 +54,19 @@ module MIPTM
 		measOp::Array{Any,1}
 		𝐻::SparseMatrixCSC{Float64,Int64}
 		Ψ₀::Array{Complex{Float64},1}
+		μ::Float64 #mean for disorder
+		σ::Float64 #stantard deviation
 	end
 	function ParametersConstructor(;L::Int64, N::Int64, dt::Float64, time::Float64,
-		traj=1, p::Float64, f::Float64, U::Float64, J::Float64, measOp::Array{Any,1}, Ψ₀::StateType, sdim::Int64)
+		traj=1, p::Float64, f::Float64, U::Float64, J::Float64, measOp::Array{Any,1},
+		Ψ₀::StateType, sdim::Int64, mean=0.0, stantardDeviation=0.0)
 		t = TimeData(dt, time, f)
 		HU, HJ = split_hamiltonian(L, N)
 		𝐻 = U .* HU .+ J .* HJ
-		return Parameters(L, N, sdim, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀))
+		return Parameters(L, N, sdim, U, J, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀), mean, stantardDeviation)
 	end
 	function ParametersConstructorWithP(p::Parameters, prob::Float64)
-		return Parameters(p.L, p.N, p.sdim, prob, p.f, p.t, p.traj, p.measOp, p.𝐻, p.Ψ₀)
+		return Parameters(p.L, p.N, p.sdim, p.U, p.J, prob, p.f, p.t, p.traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
 	end
 	function generateProjectionOperators(L, N)
 		out = []
@@ -188,81 +195,51 @@ module MIPTM
 		end
 		return res
 	end
-	function solveEveryTimeStep(p::Parameters)
+	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
 		out = [state]
+		dis = rand(Normal(p.μ, p.σ), p.L)
+		HD = disorder(p.L, p.N, dis=dis)
+		𝐻 = HD .+ p.𝐻
 		for i in 2:p.t.steps
-			state = propagate(p.𝐻, state, p.sdim, p.t.dt)
-			if i in p.t.measIndexes
+			state = propagate(𝐻, state, p.sdim, p.t.dt)
+			if projectAfterTimeStep
 				measurementEffect!(state, p)
+			else
+				if i in p.t.measIndexes
+					measurementEffect!(state, p)
+				end
 			end
 			push!(out, state)
 		end
 		return out
 	end
-	function solveEveryTimeStepAndProject(p::Parameters) #Projection after every time-step
+	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
-		out = [state]
+		dis = rand(Normal(p.μ, p.σ), p.L)
+		HD = disorder(p.L, p.N, dis=dis)
+		𝐻 = HD .+ p.𝐻
 		for i in 2:p.t.steps
-			state = propagate(p.𝐻, state, p.sdim, p.t.dt)
-			measurementEffect!(state, p)
-			push!(out, state)
-		end
-		return out
-	end
-	function solveLastTimeStep(p::Parameters)
-		state = copy(p.Ψ₀)
-		for i in 2:p.t.steps
-			state .= propagate(p.𝐻, state, p.sdim, p.t.dt)
-			if i in p.t.measIndexes
+			state .= propagate(𝐻, state, p.sdim, p.t.dt)
+			if projectAfterTimeStep
 				measurementEffect!(state, p)
+			else
+				if i in p.t.measIndexes
+					measurementEffect!(state, p)
+				end
 			end
-		end
-		return [state]
-	end
-	function solveLastTimeStepAndProject(p::Parameters)
-		state = copy(p.Ψ₀)
-		for i in 2:p.t.steps
-			state .= propagate(p.𝐻, state, p.sdim, p.t.dt)
-			measurementEffect!(state, p)
 		end
 		return [state]
 	end
 	function MIPT(p::Parameters; onlyLastValue=false, projectAfterTimeStep=false)
 		out = arrayForEveryThread()
-
 		f = solveEveryTimeStep
-		if onlyLastValue && projectAfterTimeStep
-			f = solveLastTimeStepAndProject
-		elseif onlyLastValue
+		if onlyLastValue
 			f = solveLastTimeStep
-		elseif projectAfterTimeStep
-			f = solveEveryTimeStepAndProject
 		end
 
 		Threads.@threads for _ in 1:p.traj
-			push!(out[Threads.threadid()], f(p))
-		end
-		return reduce(vcat, out)
-	end
-	function MIPTOnlyLastValue(p::Parameters)
-		out = arrayForEveryThread()
-		Threads.@threads for _ in 1:p.traj
-			push!(out[Threads.threadid()], solveLastTimeStep(p))
-		end
-		return reduce(vcat, out)
-	end
-	function MIPTProjectAfterEveryTimeStep(p::Parameters)
-		out = arrayForEveryThread()
-		Threads.@threads for _ in 1:p.traj
-			push!(out[Threads.threadid()], solveEveryTimeStepAndProject(p))
-		end
-		return reduce(vcat, out)
-	end
-	function MIPTOnlyLastValueAndProject(p::Parameters)
-		out = arrayForEveryThread()
-		Threads.@threads for _ in 1:p.traj
-			push!(out[Threads.threadid()], solveLastTimeStepAndProject(p))
+			push!(out[Threads.threadid()], f(p, projectAfterTimeStep))
 		end
 		return reduce(vcat, out)
 	end
@@ -281,15 +258,58 @@ module MIPTM
 		println(io, "L = " * string(p.L))
 		println(io, "N = " * string(p.N))
 		println(io, "sdim = " * string(p.sdim))
+		println(io, "U/J = " * string(p.U/p.J))
 		println(io, "p = " * string(p.p))
 		println(io, "f = " * string(p.f))
 		println(io, "dt = " * string(p.t.dt))
 		println(io, "t = " * string(p.t.times[end]))
 		println(io, "Ψ₀ = " * initialState)
+		println(io, "Mean = " * string(p.μ))
+		println(io, "Stantard Deviation = " * string(p.σ))
 		println(io, "\n" * notes)
 		close(io)
 		savefig(pwd() * "/Plots/" * folderName * "/" * folderName * ".png")
 	end
+
+	#Changes to Ollis code to work with two level systems...
+	function checkIfQubit(v)
+		for i in v
+			if i > 1
+				return false
+			end
+		end
+		return true
+	end
+	function q_next!(v)
+		next!(v)
+		if(!checkIfQubit(v))
+			q_next!(v)
+		end
+	end
+	function q_find_index(v)
+		N = sum(v)
+		L = length(v)
+		loopState = [ones(N); zeros(L-N)] #First state initially
+		d = binomial(L, N)
+		for i in 1:d
+			if v == loopState
+				return i
+			end
+			q_next!(loopState)
+		end
+	end
+	function q_isFirstState(v)
+		N = sum(v)
+		for i in 1:N
+			if v[i] != 1
+				return false
+			end
+		end
+		return true
+	end
+	#function q_dimensions(L, N)
+	#	return binomial(L, N)
+	#end
 end
 #=
 function MIPTOnlyLastValue(p::Parameters)

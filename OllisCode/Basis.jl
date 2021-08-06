@@ -8,7 +8,7 @@ function next!(vector)
             break
         end
     end
-    
+
     if vector[nk] > 0
         vector[nk] -= 1
         vector[nk + 1] = N - sum(vector[1:nk])
@@ -35,7 +35,7 @@ function dimension_open(L, N)::Int
     for n in 1:N
         dim += dimension(L, n)
     end
-    
+
     return dim
 end
 
@@ -67,8 +67,8 @@ function find_index_open(vector::Vector{Int})::Int64
         end
 
         return index
-    else 
-    
+    else
+
         return 1
     end
 end
@@ -96,6 +96,6 @@ function print_state(L, N, state, cutoff = 0.99)
             break
         end
     end
-    
+
     println()
 end

@@ -25,10 +25,10 @@ function density_profile(L, N, state)
     density = zeros(L)
     basis_vector = zeros(Int64, L)
     basis_vector[1] = N
-    dim = dimension(L, N)
+    dim = dimensionOlli(L, N)
     for i in 1:dim
         if i != 1
-            next!(basis_vector)
+            nextOlli!(basis_vector)
         end
 
         #index = find_index(basis_vector)
@@ -56,16 +56,16 @@ end
 function local_energy(rho, dis = 0)
     E = 0.
     N, L = size(rho)
-    N -= 1 
+    N -= 1
     Ns = 1. .* collect(0:N)
     NNs = Ns .* (Ns .- 1.)
     for j in 1:L
         if dis != 0
             E += dis[j] * sum(rho[:, j] .* Ns)
         end
-        
+
         E -= 0.5 * sum(rho[:, j] .* NNs)
     end
-    
+
     return E
 end

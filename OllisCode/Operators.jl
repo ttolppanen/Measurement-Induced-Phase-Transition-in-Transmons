@@ -107,7 +107,7 @@ end
 
 
 function split_hamiltonian(L, N; periodic = false)
-    dim = dimension(L, N)
+    dim = dimensionOlli(L, N)
     #HD = spzeros(dim, dim)
     HJ = spzeros(dim, dim)
     HU = spzeros(dim, dim)
@@ -115,7 +115,7 @@ function split_hamiltonian(L, N; periodic = false)
     basis_vector[1] = N
     for i in 1:dim
         if i != 1
-           next!(basis_vector)
+           nextOlli!(basis_vector)
         end
 
         #ind1 = find_index(basis_vector)
@@ -127,7 +127,7 @@ function split_hamiltonian(L, N; periodic = false)
                 #HD[i, i] += basis_vector[site] * dis[site]
                 modified_vector[site] -= 1
                 modified_vector[site + 1] += 1
-                index = find_index(modified_vector)
+                index = find_indexOlli(modified_vector)
                 HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1])
                 HJ[index, i] = HJ[i, index]
                 if basis_vector[site] > 1
@@ -145,7 +145,7 @@ function split_hamiltonian(L, N; periodic = false)
         if periodic == true && basis_vector[L] > 0
             modified_vector[L] -= 1
             modified_vector[1] += 1
-            index = find_index(modified_vector)
+            index = find_indexOlli(modified_vector)
             HJ[i, index] = sqrt(basis_vector[L] * modified_vector[1])
             HJ[index, i] = HJ[i, index]
         end
@@ -187,7 +187,7 @@ function hopping(L, N, cap=N; periodic = false)
 
         for site in 1:L - 1
             modified_vector = copy(basis_vector)
-            if basis_vector[site] > 0
+            if basis_vector[site] > 0 && modified_vector[site + 1] + 1 <= cap
                 modified_vector[site] -= 1
                 modified_vector[site + 1] += 1
                 index = find_index(modified_vector, cap)

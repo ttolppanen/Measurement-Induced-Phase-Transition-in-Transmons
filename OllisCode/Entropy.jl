@@ -1,7 +1,8 @@
 using LinearAlgebra, SparseArrays, KrylovKit
 include.(["Basis.jl", "Operators.jl"])
 
-function entanglement_entropy(L, N, state, sites)
+function entanglement_entropy(L, N, s, sites, cap=N)
+    state = convertFromCapped(L, N, s, cap)
     sub_dim = dimension_open(sites, N)
     schmidt = zeros(ComplexF64, sub_dim, dimension_open(L - sites, N))
     basis_vector = zeros(Int64, L)

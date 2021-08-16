@@ -34,14 +34,14 @@ function arnoldi(H, state, sdim)
             h[i, j] = V[:, i]' * v
             v .-= h[i, j] .* V[:, i]
         end
-        
+
         if j != sdim
             h[j + 1, j] = norm(v)
             v ./= h[j + 1, j]
             V[:, j + 1] .= v
         end
     end
-    
+
     return V, h
 end
 
@@ -75,7 +75,7 @@ function propagator(H, state, sdim, dt)
         h[j - 1, j] = beta
         h[j, j - 1] = beta
     end
-    
+
 
     return exp(-im * dt * h)[1, :]
 end
@@ -100,10 +100,10 @@ function propagate(H, state, propagator::Vector)
             krylov2 = copy(krylov3)
         end
     end
-    
+
 
     return normalize(state)
-    
+
 end
 
 
@@ -115,8 +115,8 @@ end
 #~     vals = reverse(vals)
 #~     for i in 1:dim
 #~         T[i, :] = vals[end - i - dim + 1:end - i]
-#~     end 
-    
+#~     end
+
 #~     return T
 #~ end
 
@@ -131,7 +131,7 @@ end
 #~     for i in 2:n
 #~         V[i, :] .= H * V[i - 1, :]
 #~     end
-    
+
 #~     return V
 #~ end
 
@@ -144,30 +144,30 @@ end
 #~             cs[n] -= binomial(n - 1, m - 1) * cs[m] * ms[n - m]
 #~         end
 #~     end
-    
+
 #~     for n in 1:ncs
 #~         cs[n] *= (-1)^(n - 1) / factorial(big(n - 1))
 #~     end
-    
+
 
 #~     ks = cs[end - nzs + 1:end]
 #~#~     T = toeplitz(cs[collect(ncs - 2 * nzs + 1:ncs) .- 1])
 #~     T = Toeplitz(cs[collect(ncs - nzs:ncs - 1)], cs[collect(reverse(ncs - 2 * nzs + 1:ncs - nzs))])
 #~     as = T \ ks
- 
+
 
 #~     lambdas = roots(Polynomial(push!(reverse(as), -1.)))
 #~     V = zeros(ComplexF64, nzs, nzs)
 #~     for i in 1:nzs
 #~         V[i, :] .= lambdas.^(i - 1)
 #~     end
-    
+
 #~     ds = V \ ks ./ lambdas .^ (ncs - nzs + 1)
-    
-    
+
+
 #~     out::Array{ComplexF64, 1} = []
 #~     for i in 1:nzs
-#~         if abs(1 - real(ds[i])) < eps 
+#~         if abs(1 - real(ds[i])) < eps
 #~             push!(out, time - 1im / lambdas[i])
 #~         end
 #~     end

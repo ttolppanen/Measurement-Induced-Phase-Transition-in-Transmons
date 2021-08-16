@@ -2,14 +2,16 @@ module MIPTM
 	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays, Plots
 	using Distributions
 	using Statistics: mean
+	using BSON: @save
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
-	export Parameters, ParametersConstructor, ParametersConstructorWithP
+	export Parameters, ParametersConstructor, ParametersConstructorWithP, ParametersConstructorWithAny
 	export calcMean, calcMeanAndVar, expVal
 	export MIPT
 	export singleSubspaceProjectors, onesState, zeroOneState
 	export generateProjectionOperators, generateSingleSite
-	export ELVSavefig
+	export halfBosonNumber
+	export savePlotData
 	export q_next!, q_find_index
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
@@ -44,6 +46,7 @@ module MIPTM
 	struct Parameters
 		L::Int64 #Number of sites
 		N::Int64 #Number of bosons
+		cap::Int64 #Max number of bosons on one site
 		sdim::Int64
 		U::Float64
 		J::Float64
@@ -63,18 +66,27 @@ module MIPTM
 		t = TimeData(dt, time, f)
 		HU = interaction(L, N, cap)
 		HJ = hopping(L, N, cap)
+		d = dimensions(L, N, cap)
+		display(d)
+		if sdim > d
+			display("sdim larger than dimensions! Changed sdim = dimensions.")
+			sdim = d
+		end
 		𝐻 = U .* HU .+ J .* HJ
-		return Parameters(L, N, sdim, U, J, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀), mean, stantardDeviation)
+		return Parameters(L, N, cap, sdim, U, J, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀), mean, stantardDeviation)
 	end
 	function ParametersConstructorWithP(p::Parameters, prob::Float64)
-		return Parameters(p.L, p.N, p.sdim, p.U, p.J, prob, p.f, p.t, p.traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
+		return Parameters(p.L, p.N, p.cap, p.sdim, p.U, p.J, prob, p.f, p.t, p.traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
 	end
-	function generateProjectionOperators(L, N)
+	function ParametersConstructorWithAny(p::Parameters; cap=p.cap, traj=p.traj)
+		return Parameters(p.L, p.N, cap, p.sdim, p.U, p.J, p.p, p.f, p.t, traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
+	end
+	function generateProjectionOperators(L, N, cap=N)
 		out = []
 		for l in 1:L
 			oneSiteOperators = []
-			for n in 0:N
-				push!(oneSiteOperators, projector(L, N, l, n))
+			for n in 0:min(N, cap)
+				push!(oneSiteOperators, projector(L, N, l, n, cap))
 			end
 			push!(out, oneSiteOperators)
 		end
@@ -89,13 +101,20 @@ module MIPTM
 		end
 		return out
 	end
-	function singleSubspaceProjectors(L, N)
-		f(L, N, l) = projector(L, N, l, 1)
+	function singleSubspaceProjectors(L, N, cap=N)
+		f(L, N, l) = projector(L, N, l, 1, cap)
 		return generateSingleSite(L, N, f)
+	end
+	function halfBosonNumber(Ψ, L, N, cap=N)
+		nₕ = number(L, N, 1, cap)
+		for i in 2:Int(round(L/2))
+			nₕ .+= number(L, N, i, cap)
+		end
+		return expVal(Ψ, nₕ^2) - expVal(Ψ, nₕ)^2
 	end
 	function onesState(L::Int64, cap=L)
 		state = zeros(dimensions(L, L, cap))
-		state[find_index(ones(Int64, L), cap)] = 1.;
+		state[find_index(ones(Int64, L), cap)] = 1.
 		return state
 	end
 	function zeroOneState(L::Int64, N::Int64, cap=N)
@@ -104,7 +123,7 @@ module MIPTM
 			push!(basisState, i%2)
 		end
 		state = zeros(dimensions(L, N, cap))
-		state[find_index(basisState, cap)] = 1.;
+		state[find_index(basisState, cap)] = 1.
 		return state
 	end
 	function expVal(s::Array{Complex{Float64},1}, op::SparseMatrixCSC{Float64,Int64})#Jos s on ket
@@ -200,8 +219,9 @@ module MIPTM
 		state = copy(p.Ψ₀)
 		out = [state]
 		dis = rand(Normal(p.μ, p.σ), p.L)
-		HD = disorder(p.L, p.N, dis=dis)
-		𝐻 = HD .+ p.𝐻
+		#HD = disorder(p.L, p.N, dis=dis)
+		#𝐻 = HD .+ p.𝐻
+		𝐻 = p.𝐻
 		for i in 2:p.t.steps
 			state = propagate(𝐻, state, p.sdim, p.t.dt)
 			if projectAfterTimeStep
@@ -218,8 +238,8 @@ module MIPTM
 	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
 		dis = rand(Normal(p.μ, p.σ), p.L)
-		HD = disorder(p.L, p.N, dis=dis)
-		𝐻 = HD .+ p.𝐻
+		#HD = disorder(p.L, p.N, dis=dis)
+		𝐻 = p.𝐻
 		for i in 2:p.t.steps
 			state .= propagate(𝐻, state, p.sdim, p.t.dt)
 			if projectAfterTimeStep
@@ -251,9 +271,8 @@ module MIPTM
 		end
 		return a
 	end
-	function ELVSavefig(;title::String, p::Parameters, initialState::String, notes="")
-		folderName = "ELV_" * title
-		path = pwd() * "/Plots/" * folderName
+	function savePlotData(x, y, title::String, p::Parameters, initialState::String; notes="")
+		path = pwd() * "/Plots/" * title
 		mkpath(path)
 		io = open(path * "/data.txt", "w")
 		println(io, "L = " * string(p.L))
@@ -269,7 +288,8 @@ module MIPTM
 		println(io, "Stantard Deviation = " * string(p.σ))
 		println(io, "\n" * notes)
 		close(io)
-		savefig(pwd() * "/Plots/" * folderName * "/" * folderName * ".png")
+		@save path * "/" * "data.bson" x y
+		savefig(path * "/" * title * ".png")
 	end
 end
 #=

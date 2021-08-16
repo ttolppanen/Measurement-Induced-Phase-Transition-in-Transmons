@@ -12,29 +12,33 @@ function next!(v, cap)
     N = sum(v)
     nextOlli!(v)
     if N != cap && isThereTooManyBosons(v, cap)
-        next!(v)
+        next!(v, cap)
     end
 end
-function find_index(v, cap)
+function find_index(v, cap)::Int64
     N = sum(v)
     L = length(v)
     if N == cap
         return find_indexOlli(v)
     else
         loopState = first_state(L, N, cap)
-        d = binomial(L, N)
+        d = dimensions(L, N, cap)
         for i in 1:d
             if v == loopState
                 return i
             end
-            q_next!(loopState)
+            next!(loopState, cap)
         end
     end
 end
 function first_state(L, N, cap)::Vector{Int} #cap = max amount of bosons on one site...
     fullStates = Int(floor(N/cap))
     bosonsLeftOver = N % cap
-    return [cap * ones(fullStates); bosonsLeftOver; zeros(L - fullStates - 1)]
+    if fullStates == L
+        return cap * ones(fullStates)
+    else
+        return [cap * ones(fullStates); bosonsLeftOver; zeros(L - fullStates - 1)]
+    end
 end
 function allPartitions(N, cap)
     out = []
@@ -50,7 +54,7 @@ function allPartitions(N, cap)
     end
     return out
 end
-function dimensions(L, N, cap)
+function dimensions(L, N, cap=N)
     if cap == N
         return dimensionOlli(L, N)
     else
@@ -65,6 +69,22 @@ function dimensions(L, N, cap)
         end
         return Int(d)
     end
+end
+function convertFromCapped(L, N, s, cap)
+    if cap == N
+        return s
+    end
+    d = dimensionOlli(L, N)
+    dₛ = dimensions(L, N, cap)
+    state::Array{Complex{Float64},1} = zeros(d)
+    basis_vector = first_state(L, N, cap)
+    for i in 1:dₛ
+        if i != 1
+            next!(basis_vector, cap)
+        end
+        state[find_indexOlli(basis_vector)] = s[find_index(basis_vector, cap)]
+    end
+    return state
 end
 
 function nextOlli!(vector)

@@ -1,17 +1,15 @@
 using MIPTM, Plots
-function first_state(L, N, cap) #cap = max amount of bosons on one site...
-    fullStates = Int(floor(N/cap))
-    bosonsLeftOver = N % cap
-    return [cap * ones(fullStates); bosonsLeftOver; zeros(L - fullStates - 1)]
-end
-function f()
-	display(first_state(8, 8, 7))
-end
 
-function displayVec(v)
-	i = q_find_index(v)
-	display(i)
-	show(v)
+
+function f()
+	L = 10; N = Int(L/2);
+	cap = 6
+	state = zeroOneState(L, N, cap)
+	measOp = generateProjectionOperators(L, N, cap)
+	p = ParametersConstructor(L=L, N=N, cap=cap, sdim=3, measOp=measOp, traj=1, dt=0.02, time=3.0, p=0.1, f=1.0, U=0.14, J=1.0, Ψ₀=state)
+	prop = propagator(p.𝐻, p.Ψ₀, p.sdim, p.t.dt)
+	pic = plot(abs2.(prop))
+	display(pic)
 end
 
 f()

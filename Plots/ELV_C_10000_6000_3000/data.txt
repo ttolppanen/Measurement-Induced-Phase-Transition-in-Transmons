@@ -5,7 +5,7 @@ p = 0.0
 f = 1.0
 dt = 0.02
 t = 10.0
-Ψ₀ = 0101
+Ψ₀ = 1010
 Mean = 0.0
 Stantard Deviation = 1.0
 

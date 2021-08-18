@@ -8,7 +8,7 @@ module MIPTM
 	export Parameters, ParametersConstructor, ParametersConstructorWithP, ParametersConstructorWithAny
 	export calcMean, calcMeanAndVar, expVal
 	export MIPT
-	export singleSubspaceProjectors, onesState, zeroOneState
+	export singleSubspaceProjectors, onesState, zeroOneState, oneZeroState
 	export generateProjectionOperators, generateSingleSite
 	export halfBosonNumber
 	export savePlotData
@@ -78,8 +78,8 @@ module MIPTM
 	function ParametersConstructorWithP(p::Parameters, prob::Float64)
 		return Parameters(p.L, p.N, p.cap, p.sdim, p.U, p.J, prob, p.f, p.t, p.traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
 	end
-	function ParametersConstructorWithAny(p::Parameters; cap=p.cap, traj=p.traj)
-		return Parameters(p.L, p.N, cap, p.sdim, p.U, p.J, p.p, p.f, p.t, traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
+	function ParametersConstructorWithAny(p::Parameters; L=p.L, cap=p.cap, traj=p.traj)
+		return Parameters(L, p.N, cap, p.sdim, p.U, p.J, p.p, p.f, p.t, traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
 	end
 	function generateProjectionOperators(L, N, cap=N)
 		out = []
@@ -117,11 +117,22 @@ module MIPTM
 		state[find_index(ones(Int64, L), cap)] = 1.
 		return state
 	end
-	function zeroOneState(L::Int64, N::Int64, cap=N)
+	function oneZeroState(L::Int64, N::Int64, cap=N)
 		basisState::Array{Int64,1} = []
 		for i in 1:L
 			push!(basisState, i%2)
 		end
+		display(basisState)
+		state = zeros(dimensions(L, N, cap))
+		state[find_index(basisState, cap)] = 1.
+		return state
+	end
+	function zeroOneState(L::Int64, N::Int64, cap=N)
+		basisState::Array{Int64,1} = [0]
+		for i in 1:L-1
+			push!(basisState, i%2)
+		end
+		display(basisState)
 		state = zeros(dimensions(L, N, cap))
 		state[find_index(basisState, cap)] = 1.
 		return state
@@ -277,6 +288,7 @@ module MIPTM
 		io = open(path * "/data.txt", "w")
 		println(io, "L = " * string(p.L))
 		println(io, "N = " * string(p.N))
+		println(io, "cap = " * string(p.cap))
 		println(io, "sdim = " * string(p.sdim))
 		println(io, "U/J = " * string(p.U/p.J))
 		println(io, "p = " * string(p.p))

@@ -1,0 +1,14 @@
+L = 8
+N = 8
+cap = 2
+sdim = 3
+U/J = 0.14
+p = 0.0
+f = 1.0
+dt = 0.02
+t = 30.0
+Ψ₀ = 1111...
+Mean = 0.0
+Stantard Deviation = 1.0
+
+

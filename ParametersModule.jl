@@ -83,7 +83,7 @@ module ParametersModule
 		sdim::Int64
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
-		temp𝐻::SparseMatrixCSC{Float64,Int64}
+		disorder𝐻::SparseMatrixCSC{Float64,Int64} #temp matrix for disorder
 		function Parameters(;sp::SystemParameters, pp::ProjectionParameters,
 					bhp::BoseHubbardParameters, cap=N, dt::Float64, time::Float64,
 					traj=1, sdim::Int64)
@@ -95,17 +95,17 @@ module ParametersModule
 				display("sdim larger than dimensions! Changed sdim = dimensions.")
 				sdim = dim
 			end
-			temp𝐻 = spzeros(dim, dim)
-			new(sp, pp, bhp, cap, dim, sdim, t, traj, temp𝐻)
+			disorder𝐻 = spzeros(dim, dim)
+			new(sp, pp, bhp, cap, dim, sdim, t, traj, disorder𝐻)
 		end
 	end
-	function makeDisorderHamiltonian(p::Parameters)
+	function makeDisorderHamiltonian!(p::Parameters)
 		if p.bhp.isThereDisorderInW && p.bhp.isThereDisorderInU
-			p.temp𝐻 .= p.bhp.𝐻 .+ disorder(p.sp.L, p.sp.N, p.cap, dis = disorderForW(p.bhp, p.sp.L))  .+ interaction(p.sp.L, p.sp.N, p.cap, dis = disorderForU(p.bhp, p.sp.L))
+			p.disorder𝐻 .= disorder(p.sp.L, p.sp.N, p.cap, dis = disorderForW(p.bhp, p.sp.L))  .+ interaction(p.sp.L, p.sp.N, p.cap, dis = disorderForU(p.bhp, p.sp.L))
 		elseif p.bhp.isThereDisorderInW
-			p.temp𝐻 .= p.bhp.𝐻 .+ disorder(p.sp.L, p.sp.N, p.cap, dis = disorderForW(p.bhp, p.sp.L))
+			p.disorder𝐻 .= disorder(p.sp.L, p.sp.N, p.cap, dis = disorderForW(p.bhp, p.sp.L))
 		elseif p.bhp.isThereDisorderInU
-			p.temp𝐻 .= p.bhp.𝐻 .+ interaction(p.sp.L, p.sp.N, p.cap, dis = disorderForU(p.bhp, p.sp.L))
+			p.disorder𝐻 .= interaction(p.sp.L, p.sp.N, p.cap, dis = disorderForU(p.bhp, p.sp.L))
 		else
 			error("Trying to create a Hamiltonian with disorder when there isn't supposed to be any...")
 		end

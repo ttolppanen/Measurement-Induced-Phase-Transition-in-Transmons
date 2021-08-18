@@ -13,8 +13,11 @@ mutable struct mutableStruct
 end
 
 function f()
-	sp = BoseHubbardParameters(L=3, N=3, U=0.14)
-	display(sp.isThereDisorderInW)
+	a = [1 2 3; 3 3 3]
+	b = a
+	b .+= [1 1 1; 4 4 4]
+	display(b)
+	display(a)
 end
 
 f()

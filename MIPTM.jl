@@ -113,17 +113,17 @@ module MIPTM
     end
 	function measurementEffect!(Ψ, p::Parameters)
 		for l in 1:p.L
-			if rand(Float64) < p.p  #Does the measurement happen?
+			if rand(Float64) < p.pp.p  #Does the measurement happen?
 				probForProjection = rand(Float64)
 				pⱼ = 0 #Probability for a single projection
-				for j in 1:length(p.measOp[l])
-					if j == length(p.measOp[l])
-						projection!(Ψ, p.measOp[l][j])
+				for j in 1:length(p.pp.projOp[l])
+					if j == length(p.pp.projOp[l])
+						projection!(Ψ, p.pp.projOp[l][j])
 						break
 					else
-						pⱼ += projectionProbability(Ψ, p.measOp[l][j])
+						pⱼ += projectionProbability(Ψ, p.pp.projOp[l][j])
 						if probForProjection < pⱼ
-							projection!(Ψ, p.measOp[l][j])
+							projection!(Ψ, p.pp.projOp[l][j])
 							break
 						end
 					end
@@ -145,25 +145,16 @@ module MIPTM
 		end
 		return res
 	end
-	function entanglementAndMeasProbability(p::Parameters, measRates)
-		res = []
-		halfOfSystems = Int(floor((p.numOfSys / 2)))
-		for rate in measRates
-			param = NewProbParameters(p=p, Γ=rate)
-			@time sol = lastValues(MIPT(param))
-			push!(res, calcMean(sol, x -> vonNeumann(x, param.s^halfOfSystems, param.s^(param.numOfSys - halfOfSystems)))[1])
-		end
-		return res
-	end
 	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)
-		state = copy(p.Ψ₀)
+		state = copy(p.sp.Ψ₀)
 		out = [state]
-		dis = rand(Normal(p.μ, p.σ), p.L)
-		#HD = disorder(p.L, p.N, dis=dis)
-		#𝐻 = HD .+ p.𝐻
-		𝐻 = p.𝐻
 		for i in 2:p.t.steps
-			state = propagate(𝐻, state, p.sdim, p.t.dt)
+			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU
+				makeDisorderHamiltonian!(p)
+				state = propagate(p.bhp.𝐻 .+ p.disorder𝐻, state, p.sdim, p.t.dt)
+			else
+				state = propagate(p.bhp.𝐻, state, p.sdim, p.t.dt)
+			end
 			if projectAfterTimeStep
 				measurementEffect!(state, p)
 			else
@@ -177,11 +168,13 @@ module MIPTM
 	end
 	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
-		dis = rand(Normal(p.μ, p.σ), p.L)
-		#HD = disorder(p.L, p.N, dis=dis)
-		𝐻 = p.𝐻
 		for i in 2:p.t.steps
-			state .= propagate(𝐻, state, p.sdim, p.t.dt)
+			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU
+				makeDisorderHamiltonian!(p)
+				state .= propagate(p.bhp.𝐻 .+ p.disorder𝐻, state, p.sdim, p.t.dt)
+			else
+				state .= propagate(p.bhp.𝐻, state, p.sdim, p.t.dt)
+			end
 			if projectAfterTimeStep
 				measurementEffect!(state, p)
 			else
@@ -215,18 +208,22 @@ module MIPTM
 		path = pwd() * "/Plots/" * title
 		mkpath(path)
 		io = open(path * "/data.txt", "w")
-		println(io, "L = " * string(p.L))
-		println(io, "N = " * string(p.N))
+		println(io, "L = " * string(p.sp.L))
+		println(io, "N = " * string(p.sp.N))
 		println(io, "cap = " * string(p.cap))
 		println(io, "sdim = " * string(p.sdim))
-		println(io, "U/J = " * string(p.U/p.J))
-		println(io, "p = " * string(p.p))
-		println(io, "f = " * string(p.f))
+		println(io, "U/J = " * string(p.bhp.U/p.bhp.J))
+		println(io, "p = " * string(p.pp.p))
+		println(io, "f = " * string(p.pp.f))
 		println(io, "dt = " * string(p.t.dt))
 		println(io, "t = " * string(p.t.times[end]))
 		println(io, "Ψ₀ = " * initialState)
-		println(io, "Mean = " * string(p.μ))
-		println(io, "Stantard Deviation = " * string(p.σ))
+		if p.bhp.isThereDisorderInW
+			println(io, "w mean = " * string(p.bhp.w))
+			println(io, "w stantard deviation = " * string(p.bhp.wσ))
+		elseif p.bhp.isThereDisorderInU
+			println(io, "U stantard deviation = " * string(p.bhp.Uσ))
+		end
 		println(io, "\n" * notes)
 		close(io)
 		@save path * "/" * "data.bson" x y

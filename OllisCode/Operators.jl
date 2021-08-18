@@ -155,7 +155,7 @@ function split_hamiltonian(L, N; periodic = false)
 end
 
 
-function interaction(L, N, cap=N)
+function interaction(L, N, cap=N; dis = ones(L))
     dim = dimensions(L, N, cap)
     HU = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
@@ -166,7 +166,7 @@ function interaction(L, N, cap=N)
 
         for site in 1:L
             if basis_vector[site] > 1
-                HU[i, i] += -0.5 * basis_vector[site] * (basis_vector[site] - 1)
+                HU[i, i] += -0.5 * basis_vector[site] * (basis_vector[site] - 1) * dis[L]
             end
         end
 

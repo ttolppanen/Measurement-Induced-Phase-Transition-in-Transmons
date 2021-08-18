@@ -1,86 +1,17 @@
 module MIPTM
 	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays, Plots
-	using Distributions
+	using Distributions, ParametersModule
 	using Statistics: mean
 	using BSON: @save
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
-	export Parameters, ParametersConstructor, ParametersConstructorWithP, ParametersConstructorWithAny
 	export calcMean, calcMeanAndVar, expVal
 	export MIPT
 	export singleSubspaceProjectors, onesState, zeroOneState, oneZeroState
 	export generateProjectionOperators, generateSingleSite
 	export halfBosonNumber
 	export savePlotData
-	export q_next!, q_find_index
 
-	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
-
-	struct TimeData
-    	dt::Float64
-    	steps::Int64
-    	times::Array{Float64, 1}
-		measIndexes::Array{Int64, 1}
-    	function TimeData(dt::Float64, endTime::Float64, f::Float64)
-			times = collect(0.0:dt:endTime)
-			steps = length(times)
-			measTimes = collect(1/f:1/f:endTime)
-			measIndexes = collectMeasIndexes(times, measTimes)
-			new(dt, steps, times, measIndexes)
-    	end
-    end
-	function collectMeasIndexes(times, measTimes)
-		reversedTimes = reverse(measTimes)
-		lastVal = pop!(reversedTimes)
-		out = []
-		for i in 1:length(times)
-			if length(measTimes) == 0
-				break
-			elseif times[i] > lastVal
-				lastVal = pop!(reversedTimes)
-				push!(out, i)
-			end
-		end
-		return out
-	end
-	struct Parameters
-		L::Int64 #Number of sites
-		N::Int64 #Number of bosons
-		cap::Int64 #Max number of bosons on one site
-		sdim::Int64
-		U::Float64
-		J::Float64
-		p::Float64 #Probability of measuring one site
-		f::Float64 #Frequency of measurements
-		t::TimeData #The duration of simulation, and also the time-step
-		traj::Int64 #Number of trajectories
-		measOp::Array{Any,1}
-		𝐻::SparseMatrixCSC{Float64,Int64}
-		Ψ₀::Array{Complex{Float64},1}
-		μ::Float64 #mean for disorder
-		σ::Float64 #stantard deviation
-	end
-	function ParametersConstructor(;L::Int64, N::Int64, cap=N, dt::Float64, time::Float64,
-		traj=1, p::Float64, f::Float64, U::Float64, J::Float64, measOp::Array{Any,1},
-		Ψ₀::StateType, sdim::Int64, mean=0.0, stantardDeviation=0.0)
-		t = TimeData(dt, time, f)
-		HU = interaction(L, N, cap)
-		HJ = hopping(L, N, cap)
-		d = dimensions(L, N, cap)
-		display(d)
-		if sdim > d
-			display("sdim larger than dimensions! Changed sdim = dimensions.")
-			sdim = d
-		end
-		𝐻 = U .* HU .+ J .* HJ
-		return Parameters(L, N, cap, sdim, U, J, p, f, t, traj, measOp, 𝐻, convert(Array{Complex{Float64},1}, Ψ₀), mean, stantardDeviation)
-	end
-	function ParametersConstructorWithP(p::Parameters, prob::Float64)
-		return Parameters(p.L, p.N, p.cap, p.sdim, p.U, p.J, prob, p.f, p.t, p.traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
-	end
-	function ParametersConstructorWithAny(p::Parameters; L=p.L, cap=p.cap, traj=p.traj)
-		return Parameters(L, p.N, cap, p.sdim, p.U, p.J, p.p, p.f, p.t, traj, p.measOp, p.𝐻, p.Ψ₀, p.μ, p.σ)
-	end
 	function generateProjectionOperators(L, N, cap=N)
 		out = []
 		for l in 1:L
@@ -122,7 +53,6 @@ module MIPTM
 		for i in 1:L
 			push!(basisState, i%2)
 		end
-		display(basisState)
 		state = zeros(dimensions(L, N, cap))
 		state[find_index(basisState, cap)] = 1.
 		return state
@@ -132,7 +62,6 @@ module MIPTM
 		for i in 1:L-1
 			push!(basisState, i%2)
 		end
-		display(basisState)
 		state = zeros(dimensions(L, N, cap))
 		state[find_index(basisState, cap)] = 1.
 		return state

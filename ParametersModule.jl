@@ -1,10 +1,10 @@
 module ParametersModule
 
-	using SparseArrays
+	using SparseArrays, Distributions
 	include.(["OllisCode/Operators.jl", "OllisCode/Basis.jl"])
 
 	export SystemParameters, ProjectionParameters, BoseHubbardParameters, Parameters
-	export makeDisorderHamiltonian
+	export makeDisorderHamiltonian!
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
 
@@ -89,7 +89,7 @@ module ParametersModule
 					traj=1, sdim::Int64)
 
 			t = TimeData(dt, time, pp.f)
-			dim = dimensions(L, N, cap)
+			dim = dimensions(sp.L, sp.N, cap)
 			display(dim)
 			if sdim > dim
 				display("sdim larger than dimensions! Changed sdim = dimensions.")

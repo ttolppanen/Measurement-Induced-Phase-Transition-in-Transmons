@@ -1,4 +1,4 @@
-using Plots, MIPTM, Distributions
+using Plots, MIPTM, Distributions, ParametersModule
 include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl",
 		"OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
@@ -8,10 +8,10 @@ function calcWithDifferentProb(p::Parameters, probabilities)
 	out2 = []
 	outVar2 = []
 	for prob in probabilities
-		param = ParametersConstructorWithP(p, prob)
-		@time sol = MIPT(param, onlyLastValue = true, projectAfterTimeStep = true)
-		@time res1, var1 = calcMeanAndVar(sol, Ψ->entanglement_entropy(p.L, p.N, Ψ, Int(p.L / 2), p.cap))
-		@time res2, var2 = calcMeanAndVar(sol, Ψ->halfBosonNumber(Ψ, p.L, p.N, p.cap))
+		p.pp.p = prob
+		@time sol = MIPT(p, onlyLastValue = true, projectAfterTimeStep = true)
+		@time res1, var1 = calcMeanAndVar(sol, Ψ->entanglement_entropy(p.sp.L, p.sp.N, Ψ, Int(p.sp.L / 2), p.cap))
+		@time res2, var2 = calcMeanAndVar(sol, Ψ->halfBosonNumber(Ψ, p.sp.L, p.sp.N, p.cap))
 		push!(out1, res1[1])
 		push!(outVar1, var1[1])
 		push!(out2, res2[1])
@@ -21,14 +21,15 @@ function calcWithDifferentProb(p::Parameters, probabilities)
 end
 function makeParam(L, traj)
 	#N = floor(Int, L/2)
-	N = Int(L/2)
-	cap = 1
-	state = zeroOneState(L, N, cap)
-	#measOp = singleSubspaceProjectors(L, N, cap)
-	measOp = generateProjectionOperators(L, N, cap)
-	p = ParametersConstructor(L=L, N=N, cap=cap, sdim=3, measOp=measOp, traj=traj, dt=0.02,
-	time=30.0, p=0.0, f=1.0, U=0.14, J=1.0, Ψ₀=state, mean=0.0, stantardDeviation=0.0)
-
+	N = L
+	cap = 2
+	state = onesState(L, cap)
+	projOp = singleSubspaceProjectors(L, N, cap)
+	#projOp = generateProjectionOperators(L, N, cap)
+	sp = SystemParameters(L=L, N=N, Ψ₀=state)
+	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
+	bhp = BoseHubbardParameters(L=L, N=N, cap=cap, U=5.14, Uσ=0.07, w=0.0, wσ = 0.015)
+	p = Parameters(sp=sp, pp=pp, bhp=bhp, cap=cap, sdim=3, dt=0.02, time=30.0, traj=traj)
 	return p
 end
 function makePlot(probabilities, res, var, L)
@@ -40,7 +41,7 @@ function makePlot(probabilities, res, var, L)
 end
 
 function f(L, traj)
-	probabilities = 0.02:0.01:0.09
+	probabilities = 0.0:0.01:0.09
 	p = makeParam(L[1], traj[1])
 	results1 = []
 	variances1 = []
@@ -59,10 +60,11 @@ function f(L, traj)
 		push!(results2, res2ᵢ)
 		push!(variances2, var2ᵢ)
 	end
-	makePlot(probabilities, results1, variances1, L)
-	savePlotData(probabilities, (results1, variances1), "ELV_S_Cap1_State0101_10000_10000_10000", p, "0101..."; notes="Total space projection")
-	makePlot(probabilities, results2, variances2, L)
-	savePlotData(probabilities, (results2, variances2), "Fluc_S_Cap1_State0101_10000_10000_10000", p, "0101..."; notes="Total space projections")
+	pl = makePlot(probabilities, results1, variances1, L)
+	#savePlotData(probabilities, (results1, variances1), "ELV_S_Cap1_State0101_10000_10000_10000", p, "0101..."; notes="Total space projection")
+	#makePlot(probabilities, results2, variances2, L)
+	#savePlotData(probabilities, (results2, variances2), "Fluc_S_Cap1_State0101_10000_10000_10000", p, "0101..."; notes="Total space projections")
+	display(pl)
 end
 
-f([4, 6, 8], [10000, 10000, 10000])
+f([4, 6, 8], [1000, 100, 50])

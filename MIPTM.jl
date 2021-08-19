@@ -112,7 +112,7 @@ module MIPTM
         return mean, var
     end
 	function measurementEffect!(Ψ, p::Parameters)
-		for l in 1:p.L
+		for l in 1:p.sp.L
 			if rand(Float64) < p.pp.p  #Does the measurement happen?
 				probForProjection = rand(Float64)
 				pⱼ = 0 #Probability for a single projection
@@ -167,7 +167,7 @@ module MIPTM
 		return out
 	end
 	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)
-		state = copy(p.Ψ₀)
+		state = copy(p.sp.Ψ₀)
 		for i in 2:p.t.steps
 			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU
 				makeDisorderHamiltonian!(p)
@@ -191,7 +191,6 @@ module MIPTM
 		if onlyLastValue
 			f = solveLastTimeStep
 		end
-
 		Threads.@threads for _ in 1:p.traj
 			push!(out[Threads.threadid()], f(p, projectAfterTimeStep))
 		end

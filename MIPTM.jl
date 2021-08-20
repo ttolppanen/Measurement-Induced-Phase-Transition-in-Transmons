@@ -220,7 +220,8 @@ module MIPTM
 		if p.bhp.isThereDisorderInW
 			println(io, "w mean = " * string(p.bhp.w))
 			println(io, "w stantard deviation = " * string(p.bhp.wσ))
-		elseif p.bhp.isThereDisorderInU
+		end
+		if p.bhp.isThereDisorderInU
 			println(io, "U stantard deviation = " * string(p.bhp.Uσ))
 		end
 		println(io, "\n" * notes)

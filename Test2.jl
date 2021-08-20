@@ -13,11 +13,9 @@ mutable struct mutableStruct
 end
 
 function f()
-	a = [1 2 3; 3 3 3]
-	b = a
-	b .+= [1 1 1; 4 4 4]
-	display(b)
-	display(a)
+	z(x) = 69*x
+	a = [x->2*x, x->4*x]
+	display(z(2))
 end
 
 f()

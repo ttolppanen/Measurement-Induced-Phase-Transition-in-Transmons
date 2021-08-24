@@ -7,6 +7,7 @@ module ParametersModule
 	export makeDisorderHamiltonian!
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
+	MatrixType = Union{Array{Complex{Float64},2}, SparseMatrixCSC{Float64,Int64}}
 
 	struct TimeData
 		dt::Float64
@@ -17,7 +18,7 @@ module ParametersModule
 			times = collect(0.0:dt:endTime)
 			steps = length(times)
 			measTimes = collect(1/f:1/f:endTime)
-			measIndexes = collectMeasIndexes(times, measTimes)
+			measIndexes = collectMeasIndexes(times, measTimes) #I think these are the indexes when measurements should occur, so that dt is always constant...
 			new(dt, steps, times, measIndexes)
 		end
 	end
@@ -84,9 +85,10 @@ module ParametersModule
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
 		disorder𝐻::SparseMatrixCSC{Float64,Int64} #temp matrix for disorder
+		useKrylov::Bool
 		function Parameters(;sp::SystemParameters, pp::ProjectionParameters,
 					bhp::BoseHubbardParameters, cap=N, dt::Float64, time::Float64,
-					traj=1, sdim::Int64)
+					traj=1, sdim::Int64, useKrylov::Bool)
 
 			t = TimeData(dt, time, pp.f)
 			dim = dimensions(sp.L, sp.N, cap)
@@ -96,7 +98,7 @@ module ParametersModule
 				sdim = dim
 			end
 			disorder𝐻 = spzeros(dim, dim)
-			new(sp, pp, bhp, cap, dim, sdim, t, traj, disorder𝐻)
+			new(sp, pp, bhp, cap, dim, sdim, t, traj, disorder𝐻, useKrylov)
 		end
 	end
 	function makeDisorderHamiltonian!(p::Parameters)

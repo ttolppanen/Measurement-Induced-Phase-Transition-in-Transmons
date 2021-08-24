@@ -1,23 +1,17 @@
-using ParametersModule, MIPTM
+using LinearAlgebra, Arpack
 
-struct unmutableStruct
-	a
-	b
-	function unmutableStruct(x)
-		new(x, 2*x)
-	end
-end
-mutable struct mutableStruct
-	c
-	d
+function fs(s, i)
+	return i * s
 end
 
 function f()
-	y = 3
-	for i in 1:3
-		local x = 2
-	end
-	display(x)
+	m = spzeros(3, 3)
+	m[1,1] = 2
+	m[2,2] = 3
+	m[3,3] = 4
+	Z = svds(m)
+	display(exp.(m))
+	display()
 end
 
 f()

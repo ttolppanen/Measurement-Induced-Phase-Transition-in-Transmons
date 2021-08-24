@@ -155,15 +155,22 @@ module MIPTM
 		end
 		return res
 	end
+	function evolveState(𝐻, Ψ, p)
+		if p.useKrylov
+			return propagate(𝐻, Ψ, p.sdim, p.t.dt)
+		else
+			return exp(-im * p.t.dt * Matrix(𝐻)) * Ψ
+		end
+	end
 	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.sp.Ψ₀)
 		out = [state]
 		for i in 2:p.t.steps
 			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU
 				makeDisorderHamiltonian!(p)
-				state = propagate(p.bhp.𝐻 .+ p.disorder𝐻, state, p.sdim, p.t.dt)
+				state = evolveState(p.bhp.𝐻 .+ p.disorder𝐻, state, p)
 			else
-				state = propagate(p.bhp.𝐻, state, p.sdim, p.t.dt)
+				state = evolveState(p.bhp.𝐻, state, p)
 			end
 			if projectAfterTimeStep
 				measurementEffect!(state, p)
@@ -181,9 +188,9 @@ module MIPTM
 		for i in 2:p.t.steps
 			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU
 				makeDisorderHamiltonian!(p)
-				state .= propagate(p.bhp.𝐻 .+ p.disorder𝐻, state, p.sdim, p.t.dt)
+				state .= evolveState(p.bhp.𝐻 .+ p.disorder𝐻, state, p)
 			else
-				state .= propagate(p.bhp.𝐻, state, p.sdim, p.t.dt)
+				state .= evolveState(p.bhp.𝐻, state, p)
 			end
 			if projectAfterTimeStep
 				measurementEffect!(state, p)

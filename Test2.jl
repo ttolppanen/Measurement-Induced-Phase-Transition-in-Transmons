@@ -13,9 +13,11 @@ mutable struct mutableStruct
 end
 
 function f()
-	z(x) = 69*x
-	a = [x->2*x, x->4*x]
-	display(z(2))
+	y = 3
+	for i in 1:3
+		local x = 2
+	end
+	display(x)
 end
 
 f()

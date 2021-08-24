@@ -9,7 +9,7 @@ module MIPTM
 	export MIPT
 	export singleSubspaceProjectors, onesState, zeroOneState, oneZeroState
 	export generateProjectionOperators, generateSingleSite
-	export halfBosonNumber
+	export halfBosonNumber, properFluc
 	export savePlotData
 
 	function generateProjectionOperators(L, N, cap=N)
@@ -110,6 +110,16 @@ module MIPTM
 		mean .= mean./numOfVal
 		var .= var./numOfVal .- mean.^2
         return mean, var
+    end
+	function properFluc(sol, p)
+		nₕ = number(p.sp.L, p.sp.N, 1, p.cap)
+		for i in 2:Int(round(p.sp.L/2))
+			nₕ .+= number(p.sp.L, p.sp.N, i, p.cap)
+		end
+		f1(Ψ) = expVal(Ψ, nₕ)
+		f2(Ψ) = expVal(Ψ, nₕ.^2)
+		d = calcMean(sol, f1)
+		return calcMean(sol, f2) - calcMean(sol, f1).^2
     end
 	function measurementEffect!(Ψ, p::Parameters)
 		for l in 1:p.sp.L

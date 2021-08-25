@@ -133,6 +133,6 @@ module ParametersModule
 	end
 	function shouldUseKrylov(dim)
 		#return dim >= 2002
-		return false
+		return true
 	end
 end

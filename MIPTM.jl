@@ -1,6 +1,6 @@
 module MIPTM
 	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays, Plots
-	using Distributions, ParametersModule
+	using Distributions, ParametersModule, ExponentialUtilities
 	using Statistics: mean
 	using BSON: @save
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
@@ -174,7 +174,8 @@ module MIPTM
 		if p.sp.useKrylov
 			return propagate(𝐻, Ψ, p.sdim, p.t.dt)
 		else
-			return expM(-im * p.t.dt * 𝐻) * Ψ
+			#return expM(-im * p.t.dt * Matrix(𝐻)) * Ψ
+			return expv(p.t.dt, 𝐻, Ψ, m=p.sdim)
 		end
 	end
 	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)

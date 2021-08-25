@@ -64,7 +64,7 @@ module ParametersModule
 		Uσ::Float64 #For disorder
 		isThereDisorderInU::Bool
 		J::Float64
-		𝐻::MatrixType
+		𝐻::SparseMatrixCSC{Float64,Int64}
 		function BoseHubbardParameters(;L::Int64, N::Int64, cap=N,
 				w::Float64=0.0, wσ::Float64=0.0,
 				U::Float64, Uσ::Float64=0.0, J::Float64=1.0)
@@ -86,7 +86,7 @@ module ParametersModule
 		sdim::Int64
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
-		disorder𝐻::MatrixType #temp matrix for disorder
+		disorder𝐻::SparseMatrixCSC{Float64,Int64} #temp matrix for disorder
 		Ψ₀::Array{Complex{Float64},1}
 		function Parameters(;sp::SystemParameters, pp::ProjectionParameters,
 					bhp::BoseHubbardParameters, dt::Float64, time::Float64,
@@ -98,11 +98,7 @@ module ParametersModule
 				display("sdim larger than dimensions! Changed sdim = dimensions.")
 				sdim = sp.dim
 			end
-			if sp.useKrylov
-				disorder𝐻 = spzeros(sp.dim, sp.dim)
-			else
-				disorder𝐻 = zeros(sp.dim, sp.dim)
-			end
+			disorder𝐻 = spzeros(sp.dim, sp.dim)
 			new(sp, pp, bhp, sdim, t, traj, disorder𝐻, convert(Array{Complex{Float64},1}, Ψ₀))
 		end
 	end

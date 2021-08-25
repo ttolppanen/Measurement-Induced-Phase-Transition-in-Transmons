@@ -22,7 +22,7 @@ end
 
 function projector(L, N, l, n; cap=N)
     dim = dimensions(L, N, cap=cap)
-        P = spzeros(dim, dim)
+    P = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
@@ -39,7 +39,7 @@ end
 
 function number(L, N, site; cap=N)
     dim = dimensions(L, N, cap)
-        n = spzeros(dim, dim)
+    n = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
@@ -157,7 +157,7 @@ end
 
 function interaction(L, N; cap=N, dis = ones(L))
     dim = dimensions(L, N, cap=cap)
-        HU = spzeros(dim, dim)
+    HU = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
@@ -178,7 +178,7 @@ end
 
 function hopping(L, N; cap=N, periodic = false)
     dim = dimensions(L, N, cap=cap)
-        HJ = spzeros(dim, dim)
+    HJ = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1
@@ -213,7 +213,7 @@ end
 
 function disorder(L, N; cap=N, return_min = false, dis = 2. .* rand(L) .- 1.)
     dim = dimensions(L, N, cap=cap)
-        HD = spzeros(dim, dim)
+    HD = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
     for i in 1:dim
         if i != 1

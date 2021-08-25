@@ -4,10 +4,10 @@ module ParametersModule
 	include.(["OllisCode/Operators.jl", "OllisCode/Basis.jl"])
 
 	export SystemParameters, ProjectionParameters, BoseHubbardParameters, Parameters
-	export makeDisorderHamiltonian!
+	export makeDisorderHamiltonian!, shouldUseKrylov
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
-	MatrixType = Union{Array{Complex{Float64},2}, SparseMatrixCSC{Float64,Int64}}
+	MatrixType = Union{Array{Float64,2}, Array{Complex{Float64},2}, SparseMatrixCSC{Float64,Int64}}
 
 	struct TimeData
 		dt::Float64
@@ -39,9 +39,13 @@ module ParametersModule
 	mutable struct SystemParameters
 		L::Int64 #Number of sites
 		N::Int64 #Number of bosons
-		Ψ₀::Array{Complex{Float64},1}
-		function SystemParameters(;L::Int64, N::Int64, Ψ₀::StateType)
-			new(L, N, convert(Array{Complex{Float64},1}, Ψ₀))
+		cap::Int64
+		dim::Int64
+		useKrylov::Bool
+		function SystemParameters(;L::Int64, N::Int64, cap=N)
+			dim = dimensions(L, N, cap=cap)
+			useKrylov = shouldUseKrylov(dim)
+			new(L, N, cap, dim, useKrylov)
 		end
 	end
 	mutable struct ProjectionParameters
@@ -60,17 +64,17 @@ module ParametersModule
 		Uσ::Float64 #For disorder
 		isThereDisorderInU::Bool
 		J::Float64
-		𝐻::SparseMatrixCSC{Float64,Int64}
+		𝐻::MatrixType
 		function BoseHubbardParameters(;L::Int64, N::Int64, cap=N,
 				w::Float64=0.0, wσ::Float64=0.0,
 				U::Float64, Uσ::Float64=0.0, J::Float64=1.0)
 
 			isThereDisorderInW = wσ != 0.0
 			isThereDisorderInU = Uσ != 0.0
-			HJ = hopping(L, N, cap)
+			HJ = hopping(L, N, cap=cap)
 			𝐻 = J .* HJ
 			if !isThereDisorderInU
-				𝐻 .+= U * interaction(L, N, cap)
+				𝐻 .+= U * interaction(L, N, cap=cap)
 			end
 			new(w, wσ, isThereDisorderInW, U, Uσ, isThereDisorderInU, J, 𝐻)
 		end
@@ -79,35 +83,36 @@ module ParametersModule
 		sp::SystemParameters
 		pp::ProjectionParameters
 		bhp::BoseHubbardParameters
-		cap::Int64 #Max number of bosons on one site
-		dim::Int64
 		sdim::Int64
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
-		disorder𝐻::SparseMatrixCSC{Float64,Int64} #temp matrix for disorder
-		useKrylov::Bool
+		disorder𝐻::MatrixType #temp matrix for disorder
+		Ψ₀::Array{Complex{Float64},1}
 		function Parameters(;sp::SystemParameters, pp::ProjectionParameters,
-					bhp::BoseHubbardParameters, cap=N, dt::Float64, time::Float64,
-					traj=1, sdim::Int64, useKrylov::Bool)
+					bhp::BoseHubbardParameters, dt::Float64, time::Float64,
+					traj=1, sdim::Int64, Ψ₀::StateType)
 
 			t = TimeData(dt, time, pp.f)
-			dim = dimensions(sp.L, sp.N, cap)
-			display(dim)
-			if sdim > dim
+			display(sp.dim)
+			if sdim > sp.dim
 				display("sdim larger than dimensions! Changed sdim = dimensions.")
-				sdim = dim
+				sdim = sp.dim
 			end
-			disorder𝐻 = spzeros(dim, dim)
-			new(sp, pp, bhp, cap, dim, sdim, t, traj, disorder𝐻, useKrylov)
+			if sp.useKrylov
+				disorder𝐻 = spzeros(sp.dim, sp.dim)
+			else
+				disorder𝐻 = zeros(sp.dim, sp.dim)
+			end
+			new(sp, pp, bhp, sdim, t, traj, disorder𝐻, convert(Array{Complex{Float64},1}, Ψ₀))
 		end
 	end
 	function makeDisorderHamiltonian!(p::Parameters)
 		if p.bhp.isThereDisorderInW && p.bhp.isThereDisorderInU
-			p.disorder𝐻 .= disorder(p.sp.L, p.sp.N, p.cap, dis = disorderForW(p.bhp, p.sp.L))  .+ interaction(p.sp.L, p.sp.N, p.cap, dis = disorderForU(p.bhp, p.sp.L))
+			p.disorder𝐻 .= disorder(p.sp.L, p.sp.N, p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))  .+ interaction(p.sp.L, p.sp.N, p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
 		elseif p.bhp.isThereDisorderInW
-			p.disorder𝐻 .= disorder(p.sp.L, p.sp.N, p.cap, dis = disorderForW(p.bhp, p.sp.L))
+			p.disorder𝐻 .= disorder(p.sp.L, p.sp.N, p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
 		elseif p.bhp.isThereDisorderInU
-			p.disorder𝐻 .= interaction(p.sp.L, p.sp.N, p.cap, dis = disorderForU(p.bhp, p.sp.L))
+			p.disorder𝐻 .= interaction(p.sp.L, p.sp.N, p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
 		else
 			error("Trying to create a Hamiltonian with disorder when there isn't supposed to be any...")
 		end
@@ -129,5 +134,9 @@ module ParametersModule
 	end
 	function disorderForU(bhp::BoseHubbardParameters, L)
 		returnDisorder(L, bhp.U, bhp.Uσ)
+	end
+	function shouldUseKrylov(dim)
+		#return dim >= 2002
+		return false
 	end
 end

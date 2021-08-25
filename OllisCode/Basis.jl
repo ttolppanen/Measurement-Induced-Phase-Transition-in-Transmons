@@ -54,7 +54,7 @@ function allPartitions(N, cap)
     end
     return out
 end
-function dimensions(L, N, cap=N)
+function dimensions(L, N; cap=N)
     if cap == N
         return dimensionOlli(L, N)
     else

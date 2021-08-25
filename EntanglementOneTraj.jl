@@ -5,17 +5,17 @@ include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl",
 function f(prob)
 	L = 4; N = L;
 	cap = N
-	state = onesState(L, cap)
-	projOp = generateProjectionOperators(L, N, cap)
-	sp = SystemParameters(L=L, N=N, Ψ₀=state)
+	sp = SystemParameters(L=L, N=N, cap=cap)
+	state = onesState(sp)
+	projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=prob, f=1.0, projOp=projOp)
 	bhp = BoseHubbardParameters(L=L, N=N, cap=cap, U=-0.14)
-	p = Parameters(sp=sp, pp=pp, bhp=bhp, cap=cap, sdim=3, dt=0.02, time=10.0, traj=10, useKrylov=false)
-	@time sol = MIPT(p, projectAfterTimeStep = true)
-	#@time res = calcMean(sol, Ψ->entanglement_entropy(p.L, p.N, Ψ, 2, cap))
+	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=10.0, traj=100)
+	@time sol = MIPT(p, projectAfterTimeStep = false)
+	#@time res = calcMean(sol, Ψ->entanglement_entropy(p.sp.L, p.sp.N, Ψ, 2, cap=cap))
 	#popfirst!(res)
 	#popfirst!(p.t.times)
-	#plot(p.t.times, res, label="p=$(p.p)", legend=:left)
+	#plot(p.t.times, res, label="p=$(p.pp.p)", legend=:left)
 end
 
 f(0.0)

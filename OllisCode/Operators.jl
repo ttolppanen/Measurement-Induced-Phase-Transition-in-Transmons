@@ -38,7 +38,7 @@ function projector(L, N, l, n; cap=N)
 end
 
 function number(L, N, site; cap=N)
-    dim = dimensions(L, N, cap)
+    dim = dimensions(L, N, cap=cap)
     n = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
     for i in 1:dim
@@ -176,7 +176,7 @@ function interaction(L, N; cap=N, dis = ones(L))
 end
 
 
-function hopping(L, N; cap=N, periodic = false)
+function hopping(L, N; cap=N, periodic = false, dis = ones(L))
     dim = dimensions(L, N, cap=cap)
     HJ = spzeros(dim, dim)
     basis_vector = first_state(L, N, cap)
@@ -191,7 +191,7 @@ function hopping(L, N; cap=N, periodic = false)
                 modified_vector[site] -= 1
                 modified_vector[site + 1] += 1
                 index = find_index(modified_vector, cap)
-                HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1])
+                HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1]) * dis[L]
                 HJ[index, i] = HJ[i, index]
             end
         end

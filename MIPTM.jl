@@ -36,7 +36,7 @@ module MIPTM
 		return out
 	end
 	function singleSubspaceProjectors(L, N; cap=N)
-		f(L, N, l) = projector(L, N, l, 1, cap)
+		f(L, N, l) = projector(L, N, l, 1, cap=cap)
 		return generateSingleSite(L, N, f)
 	end
 	function singleSubspaceProjectors(sp::SystemParameters)
@@ -62,7 +62,7 @@ module MIPTM
 		for i in 1:L
 			push!(basisState, i%2)
 		end
-		state = zeros(dimensions(L, N, cap))
+		state = zeros(dimensions(L, N, cap=cap))
 		state[find_index(basisState, cap)] = 1.
 		return state
 	end
@@ -74,7 +74,7 @@ module MIPTM
 		for i in 1:L-1
 			push!(basisState, i%2)
 		end
-		state = zeros(dimensions(L, N, cap))
+		state = zeros(dimensions(L, N, cap=cap))
 		state[find_index(basisState, cap)] = 1.
 		return state
 	end
@@ -127,9 +127,9 @@ module MIPTM
         return mean, var
     end
 	function properFluc(sol, p::Parameters)
-		nₕ = number(p.sp.L, p.sp.N, 1, p.sp.cap)
+		nₕ = number(p.sp.L, p.sp.N, 1, cap=p.sp.cap)
 		for i in 2:Int(round(p.sp.L/2))
-			nₕ .+= number(p.sp.L, p.sp.N, i, p.cap)
+			nₕ .+= number(p.sp.L, p.sp.N, i, cap=p.sp.cap)
 		end
 		f1(Ψ) = expVal(Ψ, nₕ)
 		f2(Ψ) = expVal(Ψ, nₕ.^2)
@@ -174,17 +174,16 @@ module MIPTM
 		if p.sp.useKrylov
 			return propagate(𝐻, Ψ, p.sdim, p.t.dt)
 		else
-			#return expM(-im * p.t.dt * Matrix(𝐻)) * Ψ
-			return expv(p.t.dt, 𝐻, Ψ, m=p.sdim)
+			return expM(-1im * p.t.dt .* Matrix(𝐻)) * Ψ
 		end
 	end
 	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
 		out = [state]
 		for i in 2:p.t.steps
-			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU
+			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU || p.bhp.isThereDisorderInJ
 				makeDisorderHamiltonian!(p)
-				state = evolveState(p.bhp.𝐻 .+ p.disorder𝐻, state, p)
+				state = evolveState(p.bhp.𝐻 .+ p.disorder𝐻[Threads.threadid()], state, p)
 			else
 				state = evolveState(p.bhp.𝐻, state, p)
 			end
@@ -202,9 +201,9 @@ module MIPTM
 	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
 		for i in 2:p.t.steps
-			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU
+			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU || p.bhp.isThereDisorderInJ
 				makeDisorderHamiltonian!(p)
-				state .= evolveState(p.bhp.𝐻 .+ p.disorder𝐻, state, p)
+				state .= evolveState(p.bhp.𝐻 .+ p.disorder𝐻[Threads.threadid()], state, p)
 			else
 				state .= evolveState(p.bhp.𝐻, state, p)
 			end
@@ -244,7 +243,8 @@ module MIPTM
 		println(io, "N = " * string(p.sp.N))
 		println(io, "cap = " * string(p.cap))
 		println(io, "sdim = " * string(p.sdim))
-		println(io, "U/J = " * string(p.bhp.U/p.bhp.J))
+		println(io, "U = " * string(p.bhp.U))
+		println(io, "J = " * string(p.bhp.J))
 		println(io, "p = " * string(p.pp.p))
 		println(io, "f = " * string(p.pp.f))
 		println(io, "dt = " * string(p.t.dt))
@@ -256,6 +256,9 @@ module MIPTM
 		end
 		if p.bhp.isThereDisorderInU
 			println(io, "U stantard deviation = " * string(p.bhp.Uσ))
+		end
+		if p.bhp.isThereDisorderInJ
+			println(io, "J stantard deviation = " * string(p.bhp.Jσ))
 		end
 		println(io, "\n" * notes)
 		close(io)

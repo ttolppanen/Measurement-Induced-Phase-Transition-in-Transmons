@@ -5,9 +5,9 @@ include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl",
 function calcWithDifferentProb(p::Parameters, probabilities)
 	out = []
 	outVar = []
-	ent(Ψ) = entanglement_entropy(p.sp.L, p.sp.N, Ψ, Int(p.sp.L / 2), p.cap)
-	fluc(Ψ) = halfBosonNumber(Ψ, p.sp.L, p.sp.N, p.cap)
-	functions = [ent, fluc]
+	ent(Ψ) = entanglement_entropy(p.sp.L, p.sp.N, Ψ, Int(p.sp.L / 2), cap=p.sp.cap)
+	#fluc(Ψ) = halfBosonNumber(Ψ, p.sp.L, p.sp.N, p.sp.cap)
+	functions = [ent]
 	for _ in 1:length(functions)
 		push!(out, [])
 		push!(outVar, [])
@@ -24,21 +24,21 @@ function calcWithDifferentProb(p::Parameters, probabilities)
 			push!(outVar[i], var[1])
 		end
 		@time res = properFluc(sol, p)
-		push!(out[3], res[1])
+		push!(out[2], res[1])
 	end
 	return out, outVar
 end
 function makeParam(L, traj)
 	#N = floor(Int, L/2)
 	N = L
-	cap = 2
-	state = onesState(L, cap)
-	projOp = singleSubspaceProjectors(L, N, cap)
-	#projOp = generateProjectionOperators(L, N, cap)
-	sp = SystemParameters(L=L, N=N, Ψ₀=state)
+	sp = SystemParameters(L=L, N=N, cap=2)
+	state = onesState(sp)
+	projOp = singleSubspaceProjectors(sp)
+	#projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
-	bhp = BoseHubbardParameters(L=L, N=N, cap=cap, U=-0.14, Uσ=0.07, w=0.0, wσ = 0.015)
-	p = Parameters(sp=sp, pp=pp, bhp=bhp, cap=cap, sdim=3, dt=0.02, time=30.0, traj=traj)
+	#bhp = BoseHubbardParameters(L=L, N=N, cap=sp.cap, U=-0.14, Uσ=0.07, w=0.0, wσ = 0.015)
+	bhp = BoseHubbardParameters(sp=sp, U=0.0, J=1.0, Jσ=0.5)
+	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=traj)
 	return p
 end
 function makePlot(probabilities, res, var, L)
@@ -60,7 +60,7 @@ function f(L, traj)
 	probabilities = 0.0:0.01:0.09
 	results = []
 	variances = []
-	numOfFunctions = 3
+	numOfFunctions = 2
 	for _ in 1:numOfFunctions
 		push!(results, [])
 		push!(variances, [])
@@ -74,13 +74,16 @@ function f(L, traj)
 			push!(variances[j], var[j])
 		end
 	end
-	pl = makePlot(probabilities, results[1], variances[1], L)
-	savePlotData(probabilities, (results[1], variances[1]), "ELV_S_d3_dis_Attractive_Superfluid_7000_2000_100", p, "1111..."; notes="|1><1| projection")
-	makePlot(probabilities, results[2], variances[2], L)
-	savePlotData(probabilities, (results[2], variances[2]), "Fluc_S_d3_dis_Attractive_Superfluid_7000_2000_100", p, "1111..."; notes="|1><1| projection")
-	makePlot(probabilities, results[3], L)
-	savePlotData(probabilities, (results[3], results[3]), "ProperFluc_S_d3_dis_Attractive_Superfluid_7000_2000_100", p, "1111..."; notes="|1><1| projection, variances are not real data! They are just the same as the result")
-	display(pl)
+	pl = makePlot(probabilities, results[1], L)
+	plot!(probabilities, x->2.0/((x/0.02)^2 + 3))
+	#savePlotData(probabilities, (results[1], variances[1]), "ELV_S_d3_dis_Attractive_Superfluid_7000_2000_100", p, "1111..."; notes="|1><1| projection")
+	#makePlot(probabilities, results[2], variances[2], L)
+	#savePlotData(probabilities, (results[2], variances[2]), "Fluc_S_d3_dis_Attractive_Superfluid_7000_2000_100", p, "1111..."; notes="|1><1| projection")
+	#makePlot(probabilities, results[3], L)
+	#savePlotData(probabilities, (results[3], results[3]), "ProperFluc_S_d3_dis_Attractive_Superfluid_7000_2000_100", p, "1111..."; notes="|1><1| projection, variances are not real data! They are just the same as the result")
+	#pl = makePlot(probabilities, results[1], L)
+	#return pl
 end
 
-f([4, 6, 8], [7000, 2000, 100])
+#f([4, 6, 8], [7000, 2000, 100])
+f([2], [5000])

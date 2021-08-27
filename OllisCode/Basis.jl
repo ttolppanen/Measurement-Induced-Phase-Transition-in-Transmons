@@ -22,7 +22,7 @@ function find_index(v, cap)::Int64
         return find_indexOlli(v)
     else
         loopState = first_state(L, N, cap)
-        d = dimensions(L, N, cap)
+        d = dimensions(L, N, cap=cap)
         for i in 1:d
             if v == loopState
                 return i
@@ -75,7 +75,7 @@ function convertFromCapped(L, N, s, cap)
         return s
     end
     d = dimensionOlli(L, N)
-    dₛ = dimensions(L, N, cap)
+    dₛ = dimensions(L, N, cap=cap)
     state::Array{Complex{Float64},1} = zeros(d)
     basis_vector = first_state(L, N, cap)
     for i in 1:dₛ

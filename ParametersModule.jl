@@ -1,10 +1,10 @@
 module ParametersModule
 
-	using SparseArrays, Distributions
+	using SparseArrays, Distributions, LinearAlgebra
 	include.(["OllisCode/Operators.jl", "OllisCode/Basis.jl"])
 
 	export SystemParameters, ProjectionParameters, BoseHubbardParameters, Parameters
-	export makeDisorderHamiltonian!, shouldUseKrylov
+	export updateTempMatrices!, shouldUseKrylov
 
 	StateType = Union{Array{Float64,1}, Array{Complex{Float64},1}}
 	MatrixType = Union{Array{Float64,2}, Array{Complex{Float64},2}, SparseMatrixCSC{Float64,Int64}}
@@ -66,15 +66,17 @@ module ParametersModule
 		J::Float64
 		Jσ::Float64
 		isThereDisorderInJ::Bool
+		isThereDisorder::Bool
 		𝐻::SparseMatrixCSC{Float64,Int64}
 		function BoseHubbardParameters(;sp::SystemParameters,
 				w::Float64=0.0, wσ::Float64=0.0,
-				U::Float64, Uσ::Float64=0.0,
+				U::Float64=0.0, Uσ::Float64=0.0,
 				J::Float64=1.0, Jσ::Float64=0.0)
 
 			isThereDisorderInW = wσ != 0.0
 			isThereDisorderInU = Uσ != 0.0
 			isThereDisorderInJ = Jσ != 0.0
+			isThereDisorder = isThereDisorderInW || isThereDisorderInU || isThereDisorderInJ
 			𝐻 = spzeros(sp.dim, sp.dim)
 			if !isThereDisorderInJ
 				𝐻 .+= J .* hopping(sp.L, sp.N, cap=sp.cap)
@@ -82,7 +84,7 @@ module ParametersModule
 			if !isThereDisorderInU
 				𝐻 .+= U .* interaction(sp.L, sp.N, cap=sp.cap)
 			end
-			new(w, wσ, isThereDisorderInW, U, Uσ, isThereDisorderInU, J, Jσ, isThereDisorderInJ, 𝐻)
+			new(w, wσ, isThereDisorderInW, U, Uσ, isThereDisorderInU, J, Jσ, isThereDisorderInJ, isThereDisorder, 𝐻)
 		end
 	end
 	mutable struct Parameters
@@ -92,7 +94,7 @@ module ParametersModule
 		sdim::Int64
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
-		disorder𝐻::Array{SparseMatrixCSC{Float64,Int64},1} #temp matrix for disorder and every thread...
+		tempMatrices #Matrices for disordered hamiltonian or the time evolution...
 		Ψ₀::Array{Complex{Float64},1}
 		function Parameters(;sp::SystemParameters, pp::ProjectionParameters,
 					bhp::BoseHubbardParameters, dt::Float64, time::Float64,
@@ -104,28 +106,66 @@ module ParametersModule
 				display("sdim larger than dimensions! Changed sdim = dimensions.")
 				sdim = sp.dim
 			end
-			disorder𝐻 = []
-			for _ in 1:Threads.nthreads()
-				push!(disorder𝐻, spzeros(sp.dim, sp.dim))
+			tempMatrices = generateTempMatrices(bhp.𝐻, dt, sp.dim, sp.useKrylov, bhp.isThereDisorder)
+			new(sp, pp, bhp, sdim, t, traj, tempMatrices, convert(Array{Complex{Float64},1}, Ψ₀))
+		end
+	end
+	function updateTempMatrices!(p::Parameters)
+		if p.bhp.isThereDisorder
+			if p.sp.useKrylov
+				makeDisorderHamiltonian!(p::Parameters)
+			else
+				makeDisorderedTimeEvolution!(p::Parameters)
 			end
-			new(sp, pp, bhp, sdim, t, traj, disorder𝐻, convert(Array{Complex{Float64},1}, Ψ₀))
+		end
+	end
+	function generateTempMatrices(𝐻, dt, dim, useKrylov::Bool, isThereDisorder::Bool)
+		if useKrylov
+			if isThereDisorder
+				tempMatrices = []
+				for _ in 1:Threads.nthreads()
+					push!(tempMatrices, spzeros(dim, dim))
+				end
+				return tempMatrices
+			else
+				return 0
+			end
+		else
+			if isThereDisorder
+				tempMatrices = []
+				for _ in 1:Threads.nthreads()
+					push!(tempMatrices, zeros(Complex{Float64}, dim, dim))
+				end
+				return tempMatrices
+			else
+				return expM(-1im * dt * Matrix(𝐻))
+			end
 		end
 	end
 	function makeDisorderHamiltonian!(p::Parameters)
-		if !p.bhp.isThereDisorderInW && !p.bhp.isThereDisorderInU && !p.bhp.isThereDisorderInJ
-			error("Trying to create a Hamiltonian with disorder when there isn't supposed to be any...")
-		else
-			p.disorder𝐻[Threads.threadid()] .= spzeros(p.sp.dim, p.sp.dim)
-			if p.bhp.isThereDisorderInW
-				p.disorder𝐻[Threads.threadid()] .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
-			end
-			if p.bhp.isThereDisorderInU
-				p.disorder𝐻[Threads.threadid()] .+= interaction(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
-			end
-			if p.bhp.isThereDisorderInJ
-				p.disorder𝐻[Threads.threadid()] .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
-			end
+		p.tempMatrices[Threads.threadid()] = p.bhp.𝐻
+		if p.bhp.isThereDisorderInW
+			p.tempMatrices[Threads.threadid()] .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
 		end
+		if p.bhp.isThereDisorderInU
+			p.tempMatrices[Threads.threadid()] .+= interaction(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
+		end
+		if p.bhp.isThereDisorderInJ
+			p.tempMatrices[Threads.threadid()] .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
+		end
+	end
+	function makeDisorderedTimeEvolution!(p::Parameters)
+		mat = p.bhp.𝐻
+		if p.bhp.isThereDisorderInW
+			mat .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
+		end
+		if p.bhp.isThereDisorderInU
+			mat .+= interaction(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
+		end
+		if p.bhp.isThereDisorderInJ
+			mat .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
+		end
+		p.tempMatrices[Threads.threadid()] .= expM(-1im * p.t.dt * Matrix(mat))
 	end
 	#=
 	function ParametersConstructorWithP(p::Parameters, prob::Float64)
@@ -149,6 +189,12 @@ module ParametersModule
 		returnDisorder(L, bhp.J, bhp.Jσ)
 	end
 	function shouldUseKrylov(dim)
-		return dim > 3
+		return dim > 100
+	end
+	function expM(M)
+		va, U = eigen(M)
+		d = U' * M * U
+		d .= exp(Diagonal(d))
+		return U * d * U'
 	end
 end

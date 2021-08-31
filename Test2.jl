@@ -1,9 +1,15 @@
 using Plots
 
 function f()
-	prob = 0.0:0.01:0.09
-	plot(prob, x->1.0/(x^2 + 3))
-	plot!(prob, x->0)
+	H = [1 2; 3 4]
+	res = []
+	for _ in 1:Threads.nthreads()
+		push!(res, 0)
+	end
+	Threads.@threads for _ in 1:1000
+		res[Threads.threadid()] += [1, 4]' * H * [1, 2]
+	end
+	display(sum(res))
 end
 
 f()

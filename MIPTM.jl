@@ -1,6 +1,6 @@
 module MIPTM
 	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays, Plots
-	using Distributions, ParametersModule, ExponentialUtilities
+	using Distributions, ParametersModule
 	using Statistics: mean
 	using BSON: @save
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
@@ -43,9 +43,9 @@ module MIPTM
 		singleSubspaceProjectors(sp.L, sp.N, cap=sp.cap)
 	end
 	function halfBosonNumber(Ψ, L, N; cap=N)
-		nₕ = number(L, N, 1, cap)
+		nₕ = number(L, N, 1, cap=cap)
 		for i in 2:Int(round(L/2))
-			nₕ .+= number(L, N, i, cap)
+			nₕ .+= number(L, N, i, cap=cap)
 		end
 		return expVal(Ψ, nₕ^2) - expVal(Ψ, nₕ)^2
 	end
@@ -170,23 +170,33 @@ module MIPTM
 		end
 		return res
 	end
-	function evolveState(𝐻, Ψ, p)
+	function evolveState(𝐻::SparseMatrixCSC{Float64,Int64}, Ψ, p)
+		return propagate(𝐻, Ψ, p.sdim, p.t.dt)
+	end
+	function evolveState(mat::Array{Complex{Float64},2}, Ψ, p)
+		return mat * Ψ
+	end
+	function evolveState(Ψ, p)
 		if p.sp.useKrylov
-			return propagate(𝐻, Ψ, p.sdim, p.t.dt)
+			if p.bhp.isThereDisorder
+				return propagate(p.tempMatrices[Threads.threadid()], Ψ, p.sdim, p.t.dt)
+			else
+				return propagate(p.bhp.𝐻, Ψ, p.sdim, p.t.dt)
+			end
 		else
-			return expM(-1im * p.t.dt .* Matrix(𝐻)) * Ψ
+			if p.bhp.isThereDisorder
+				return p.tempMatrices[Threads.threadid()] * Ψ
+			else
+				return p.tempMatrices * Ψ
+			end
 		end
 	end
 	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
 		out = [state]
+		updateTempMatrices!(p)#Generate proper matrices in the memory for disorder etc...
 		for i in 2:p.t.steps
-			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU || p.bhp.isThereDisorderInJ
-				makeDisorderHamiltonian!(p)
-				state = evolveState(p.bhp.𝐻 .+ p.disorder𝐻[Threads.threadid()], state, p)
-			else
-				state = evolveState(p.bhp.𝐻, state, p)
-			end
+			state = evolveState(state, p)
 			if projectAfterTimeStep
 				measurementEffect!(state, p)
 			else
@@ -200,13 +210,9 @@ module MIPTM
 	end
 	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
+		updateTempMatrices!(p)
 		for i in 2:p.t.steps
-			if p.bhp.isThereDisorderInW || p.bhp.isThereDisorderInU || p.bhp.isThereDisorderInJ
-				makeDisorderHamiltonian!(p)
-				state .= evolveState(p.bhp.𝐻 .+ p.disorder𝐻[Threads.threadid()], state, p)
-			else
-				state .= evolveState(p.bhp.𝐻, state, p)
-			end
+			state .= evolveState(state, p)
 			if projectAfterTimeStep
 				measurementEffect!(state, p)
 			else
@@ -241,7 +247,7 @@ module MIPTM
 		io = open(path * "/data.txt", "w")
 		println(io, "L = " * string(p.sp.L))
 		println(io, "N = " * string(p.sp.N))
-		println(io, "cap = " * string(p.cap))
+		println(io, "cap = " * string(p.sp.cap))
 		println(io, "sdim = " * string(p.sdim))
 		println(io, "U = " * string(p.bhp.U))
 		println(io, "J = " * string(p.bhp.J))

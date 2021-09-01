@@ -94,7 +94,7 @@ module ParametersModule
 		sdim::Int64
 		t::TimeData #The duration of simulation, and also the time-step
 		traj::Int64 #Number of trajectories
-		tempMatrices #Matrices for disordered hamiltonian or the time evolution...
+		tempMatKrylov #Matrices for disordered hamiltonian or the time evolution...
 		Ψ₀::Array{Complex{Float64},1}
 		function Parameters(;sp::SystemParameters, pp::ProjectionParameters,
 					bhp::BoseHubbardParameters, dt::Float64, time::Float64,
@@ -155,7 +155,7 @@ module ParametersModule
 		end
 	end
 	function makeDisorderedTimeEvolution!(p::Parameters)
-		mat = p.bhp.𝐻
+		mat = copy(p.bhp.𝐻)
 		if p.bhp.isThereDisorderInW
 			mat .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
 		end
@@ -189,7 +189,7 @@ module ParametersModule
 		returnDisorder(L, bhp.J, bhp.Jσ)
 	end
 	function shouldUseKrylov(dim)
-		return dim > 100
+		return dim > 1
 	end
 	function expM(M)
 		va, U = eigen(M)

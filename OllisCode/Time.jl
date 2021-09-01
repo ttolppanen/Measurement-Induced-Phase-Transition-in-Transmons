@@ -46,12 +46,12 @@ function arnoldi(H, state, sdim)
 end
 
 
-function propagate(H, state, sdim::Int64, dt; algo = lanczos, normalise = true)
+function propagate!(H::SparseMatrixCSC{Float64,Int64}, state, sdim::Int64, dt; algo = lanczos, normalise = true)
     V, h = algo(H, state, sdim)
     if normalise == true
-        return normalize(V * exp(-im * dt * h)[1, :])
+        state .= normalize(V * exp(-im * dt * h)[1, :])
     else
-        return V * (exp(-im * dt * h)[1, :])
+        state .= V * (exp(-im * dt * h)[1, :])
     end
 end
 

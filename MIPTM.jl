@@ -124,6 +124,7 @@ module MIPTM
 		var = sum(threadsVar)
 		mean .= mean./numOfVal
 		var .= var./numOfVal .- mean.^2
+		var .= round.(var, digits=12)
         return mean, var
     end
 	function properFluc(sol, p::Parameters)
@@ -170,33 +171,27 @@ module MIPTM
 		end
 		return res
 	end
-	function evolveState(𝐻::SparseMatrixCSC{Float64,Int64}, Ψ, p)
-		return propagate(𝐻, Ψ, p.sdim, p.t.dt)
-	end
-	function evolveState(mat::Array{Complex{Float64},2}, Ψ, p)
-		return mat * Ψ
-	end
-	function evolveState(Ψ, p)
+	function evolveState!(Ψ, p::Parameters)
 		if p.sp.useKrylov
 			if p.bhp.isThereDisorder
-				return propagate(p.tempMatrices[Threads.threadid()], Ψ, p.sdim, p.t.dt)
+				propagate!(p.tempMatrices[Threads.threadid()], Ψ, p.sdim, p.t.dt)
 			else
-				return propagate(p.bhp.𝐻, Ψ, p.sdim, p.t.dt)
+				propagate!(p.bhp.𝐻, Ψ, p.sdim, p.t.dt)
 			end
 		else
 			if p.bhp.isThereDisorder
-				return p.tempMatrices[Threads.threadid()] * Ψ
+				Ψ .= p.tempMatrices[Threads.threadid()] * Ψ
 			else
-				return p.tempMatrices * Ψ
+				Ψ .= p.tempMatrices * Ψ
 			end
 		end
 	end
 	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)
 		state = copy(p.Ψ₀)
-		out = [state]
+		out = [copy(state)]
 		updateTempMatrices!(p)#Generate proper matrices in the memory for disorder etc...
 		for i in 2:p.t.steps
-			state = evolveState(state, p)
+			evolveState!(state, p)
 			if projectAfterTimeStep
 				measurementEffect!(state, p)
 			else
@@ -204,7 +199,7 @@ module MIPTM
 					measurementEffect!(state, p)
 				end
 			end
-			push!(out, state)
+			push!(out, copy(state))
 		end
 		return out
 	end
@@ -212,7 +207,7 @@ module MIPTM
 		state = copy(p.Ψ₀)
 		updateTempMatrices!(p)
 		for i in 2:p.t.steps
-			state .= evolveState(state, p)
+			evolveState!(state, p)
 			if projectAfterTimeStep
 				measurementEffect!(state, p)
 			else

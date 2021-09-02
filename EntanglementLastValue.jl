@@ -14,10 +14,10 @@ function calcWithDifferentProb(p::Parameters, probabilities)
 	end
 	push!(out, [])
 	push!(outVar, [])
-
 	for prob in probabilities
 		p.pp.p = prob
 		@time sol = MIPT(p, onlyLastValue = true, projectAfterTimeStep = true)
+		display("Result times")
 		for i in 1:length(functions)
 			@time res, var = calcMeanAndVar(sol, functions[i])
 			push!(out[i], res[1])
@@ -26,6 +26,7 @@ function calcWithDifferentProb(p::Parameters, probabilities)
 		@time res = properFluc(sol, p)
 		push!(out[end], res[1])
 	end
+	display("end results")
 	return out, outVar
 end
 function makeParam(L, traj)
@@ -58,7 +59,7 @@ function makePlot(probabilities, res, L)
 end
 
 function f(L, traj)
-	probabilities = 0.0:0.01:0.09
+	probabilities = 0.0:0.01:0.04
 	results = []
 	variances = []
 	numOfFunctions = 3
@@ -87,5 +88,5 @@ function f(L, traj)
 	#return pl
 end
 
-f([4, 6, 8], [7, 2, 10])
+f([4, 6, 8], [1, 1, 10])
 #f([2], [5000])

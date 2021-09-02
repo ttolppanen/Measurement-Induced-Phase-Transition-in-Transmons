@@ -3,7 +3,7 @@ using Plots
 function f()
 	H = [1 2; 3 4]
 	res = []
-	for _ in 1:Threads.nthreads()
+	@time for _ in 1:10000
 		push!(res, 0)
 	end
 	Threads.@threads for _ in 1:1000

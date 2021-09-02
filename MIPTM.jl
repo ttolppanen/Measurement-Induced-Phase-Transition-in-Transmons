@@ -174,15 +174,19 @@ module MIPTM
 	function evolveState!(Ψ, p::Parameters)
 		if p.sp.useKrylov
 			if p.bhp.isThereDisorder
-				propagate!(p.tempMatrices[Threads.threadid()], Ψ, p.sdim, p.t.dt)
+				if Threads.threadid() == 2
+					@time propagate!(p, p.tempMatKrylov[Threads.threadid()], Ψ)
+				else
+					propagate!(p, p.tempMatKrylov[Threads.threadid()], Ψ)
+				end
 			else
-				propagate!(p.bhp.𝐻, Ψ, p.sdim, p.t.dt)
+				propagate!(p, p.bhp.𝐻, Ψ)
 			end
 		else
 			if p.bhp.isThereDisorder
-				Ψ .= p.tempMatrices[Threads.threadid()] * Ψ
+				Ψ .= p.tempMatNotKrylov[Threads.threadid()] * Ψ
 			else
-				Ψ .= p.tempMatrices * Ψ
+				Ψ .= p.expH * Ψ
 			end
 		end
 	end

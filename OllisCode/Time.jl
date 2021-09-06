@@ -1,4 +1,4 @@
-using LinearAlgebra, SparseArrays, ParametersModule
+using LinearAlgebra, SparseArrays, ParametersModule, InteractiveUtils
 
 function lanczos(H, state, sdim)
     dim = length(state)
@@ -21,8 +21,8 @@ function lanczos(H, state, sdim)
     return V, h
 end
 function lanczos!(H, state, dim, sdim, V, h, w)
-    V .= zeros(ComplexF64, dim, sdim)
-    h .= zeros(ComplexF64, sdim, sdim)
+    V .= zero(ComplexF64)
+    h .= zero(ComplexF64)
     V[:, 1] .= normalize(state)
     w .= H * state
     h[1, 1] = w' * state
@@ -30,9 +30,9 @@ function lanczos!(H, state, dim, sdim, V, h, w)
     for j in 2:sdim
         beta = norm(w)
         V[:, j] .= w / beta
-        w = H * V[:, j]
-        h[j, j] = w' * V[:, j]
-        w .-= (h[j, j] * V[:, j] + beta * V[:, j - 1])
+        @views w = H * V[:, j]
+        @views h[j, j] = w' * V[:, j]
+        @views w .-= (h[j, j] * V[:, j] + beta * V[:, j - 1])
         h[j - 1, j] = beta
         h[j, j - 1] = beta
     end
@@ -64,11 +64,11 @@ end
 
 
 function propagate!(p::Parameters, H::SparseMatrixCSC{Float64,Int64}, state)
-    propagate!(H, state, p.t.dt, p.sp.dim, p.sdim, p.V[Threads.threadid()], p.h[Threads.threadid()], p.w[Threads.threadid()])
+    propagate!(H, state, p.t.dt, p.sp.dim, p.sdim, p.V, p.h, p.w)
 end
 function propagate!(H::SparseMatrixCSC{Float64,Int64}, state, dt::Float64, dim::Int64, sdim::Int64, V, h, w)
     lanczos!(H, state, dim, sdim, V, h, w)
-    state .= normalize(V * exp(-im * dt * h)[1, :])
+    @views state .= normalize(V * exp(-im * dt * h)[1, :])
 end
 function propagate!(H::SparseMatrixCSC{Float64,Int64}, state, sdim::Int64, dt; algo = lanczos, normalise = true)
     V, h = algo(H, state, sdim)

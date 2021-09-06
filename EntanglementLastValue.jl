@@ -24,9 +24,9 @@ function calcWithDifferentProb(p::Parameters, probabilities)
 			push!(outVar[i], var[1])
 		end
 		@time res = properFluc(sol, p)
+		display("end results")
 		push!(out[end], res[1])
 	end
-	display("end results")
 	return out, outVar
 end
 function makeParam(L, traj)
@@ -59,7 +59,7 @@ function makePlot(probabilities, res, L)
 end
 
 function f(L, traj)
-	probabilities = 0.0:0.01:0.04
+	probabilities = 0.0:0.01:0.09
 	results = []
 	variances = []
 	numOfFunctions = 3
@@ -78,15 +78,15 @@ function f(L, traj)
 	end
 	pl = makePlot(probabilities, results[1], variances[1], L)
 	#plot!(probabilities, x->2.0/((x/0.02)^2 + 3))
-	#savePlotData(probabilities, (results[1], variances[1]), "Fixed_ELV_S_d3_dis_Attractive_Insulator_7000_2000_100", p, "1111..."; notes="|1><1| projection")
-	#makePlot(probabilities, results[2], variances[2], L)
-	#savePlotData(probabilities, (results[2], variances[2]), "Fixed_Fluc_S_d3_dis_Attractive_Insulator_7000_2000_100", p, "1111..."; notes="|1><1| projection")
-	#makePlot(probabilities, results[3], L)
-	#savePlotData(probabilities, (results[3], results[3]), "Fixed_ProperFluc_S_d3_dis_Attractive_Insulator_7000_2000_100", p, "1111..."; notes="|1><1| projection, variances are not real data! They are just the same as the result")
+	savePlotData(probabilities, (results[1], variances[1]), "Fixed_ELV_S_d3_dis_Attractive_Insulator_10000_5000_300", p, "1111..."; notes="|1><1| projection")
+	makePlot(probabilities, results[2], variances[2], L)
+	savePlotData(probabilities, (results[2], variances[2]), "Fixed_Fluc_S_d3_dis_Attractive_Insulator_10000_5000_300", p, "1111..."; notes="|1><1| projection")
+	makePlot(probabilities, results[3], L)
+	savePlotData(probabilities, (results[3], results[3]), "Fixed_ProperFluc_S_d3_dis_Attractive_Insulator_10000_5000_300", p, "1111..."; notes="|1><1| projection, variances are not real data! They are just the same as the result")
 	display(pl)
 	#pl = makePlot(probabilities, results[1], L)
 	#return pl
 end
 
-f([4, 6, 8], [1, 1, 10])
+f([4, 6, 8], [10000, 5000, 300])
 #f([2], [5000])

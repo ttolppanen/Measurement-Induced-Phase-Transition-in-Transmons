@@ -1,16 +1,17 @@
 using Plots
 
-function f()
-	H = [1 2; 3 4]
-	res = []
-	@time for _ in 1:10000
-		push!(res, 0)
+function asdasd(mat, dim)
+	for i in 1:dim
+		for j in 1:dim
+			mat[j, i] = 0
+		end
 	end
-	Threads.@threads for _ in 1:1000
-		res[Threads.threadid()] += [1, 4]' * H * [1, 2]
-	end
-	display(typeof(H))
-	display(sum(res))
 end
 
-f()
+function f()
+	dim = 10000
+	a = ones(dim, dim)
+	a .= zeros(dim, dim)
+end
+
+@time f()

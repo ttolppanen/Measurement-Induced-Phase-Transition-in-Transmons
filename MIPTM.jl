@@ -174,23 +174,19 @@ module MIPTM
 	function evolveState!(Ψ, p::Parameters)
 		if p.sp.useKrylov
 			if p.bhp.isThereDisorder
-				if Threads.threadid() == 2
-					@time propagate!(p, p.tempMatKrylov[Threads.threadid()], Ψ)
-				else
-					propagate!(p, p.tempMatKrylov[Threads.threadid()], Ψ)
-				end
+				propagate!(p, p.tempMatKrylov, Ψ)
 			else
 				propagate!(p, p.bhp.𝐻, Ψ)
 			end
 		else
 			if p.bhp.isThereDisorder
-				Ψ .= p.tempMatNotKrylov[Threads.threadid()] * Ψ
+				Ψ .= p.tempMatNotKrylov * Ψ
 			else
 				Ψ .= p.expH * Ψ
 			end
 		end
 	end
-	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)
+	function solveEveryTimeStep(p::Parameters, projectAfterTimeStep)::Array{Array{Complex{Float64},1},1}
 		state = copy(p.Ψ₀)
 		out = [copy(state)]
 		updateTempMatrices!(p)#Generate proper matrices in the memory for disorder etc...
@@ -207,7 +203,7 @@ module MIPTM
 		end
 		return out
 	end
-	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)
+	function solveLastTimeStep(p::Parameters, projectAfterTimeStep)::Array{Array{Complex{Float64},1},1}
 		state = copy(p.Ψ₀)
 		updateTempMatrices!(p)
 		for i in 2:p.t.steps
@@ -223,15 +219,28 @@ module MIPTM
 		return [state]
 	end
 	function MIPT(p::Parameters; onlyLastValue=false, projectAfterTimeStep=false)
-		out = arrayForEveryThread()
-		f = solveEveryTimeStep
-		if onlyLastValue
-			f = solveLastTimeStep
+		if p.traj > 1000
+			out = arrayForEveryThread()
+			parameters = parametersForEveryThread(p)
+			Threads.@threads for _ in 1:p.traj
+				if onlyLastValue
+					push!(out[Threads.threadid()], solveLastTimeStep(parameters[Threads.threadid()], projectAfterTimeStep))
+				else
+					push!(out[Threads.threadid()], solveEveryTimeStep(parameters[Threads.threadid()], projectAfterTimeStep))
+				end
+			end
+			return reduce(vcat, out)
+		else
+			out = []
+			for _ in 1:p.traj
+				if onlyLastValue
+					push!(out, solveLastTimeStep(p, projectAfterTimeStep))
+				else
+					push!(out, solveEveryTimeStep(p, projectAfterTimeStep))
+				end
+			end
+			return out
 		end
-		Threads.@threads for _ in 1:p.traj
-			push!(out[Threads.threadid()], f(p, projectAfterTimeStep))
-		end
-		return reduce(vcat, out)
 	end
 	function arrayForEveryThread()
 		a = []
@@ -239,6 +248,13 @@ module MIPTM
 			push!(a, [])
 		end
 		return a
+	end
+	function parametersForEveryThread(p::Parameters)
+		out = []
+		for _ in 1:Threads.nthreads()
+			push!(out, deepcopy(p))
+		end
+		return out
 	end
 	function savePlotData(x, y, title::String, p::Parameters, initialState::String; notes="")
 		path = pwd() * "/Plots/" * title

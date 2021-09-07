@@ -78,15 +78,15 @@ function f(L, traj)
 	end
 	pl = makePlot(probabilities, results[1], variances[1], L)
 	#plot!(probabilities, x->2.0/((x/0.02)^2 + 3))
-	savePlotData(probabilities, (results[1], variances[1]), "Fixed_ELV_S_d3_dis_Attractive_Insulator_10000_5000_300", p, "1111..."; notes="|1><1| projection")
-	makePlot(probabilities, results[2], variances[2], L)
-	savePlotData(probabilities, (results[2], variances[2]), "Fixed_Fluc_S_d3_dis_Attractive_Insulator_10000_5000_300", p, "1111..."; notes="|1><1| projection")
-	makePlot(probabilities, results[3], L)
-	savePlotData(probabilities, (results[3], results[3]), "Fixed_ProperFluc_S_d3_dis_Attractive_Insulator_10000_5000_300", p, "1111..."; notes="|1><1| projection, variances are not real data! They are just the same as the result")
+	#savePlotData(probabilities, (results[1], variances[1]), "ELV_S_2020test_5000_2000_100", p, "2020..."; notes="|1><1| projection")
+	#makePlot(probabilities, results[2], variances[2], L)
+	#savePlotData(probabilities, (results[2], variances[2]), "202020test_5000_2000_100", p, "2020..."; notes="|1><1| projection")
+	#makePlot(probabilities, results[3], L)
+	#savePlotData(probabilities, (results[3], results[3]), "202020test_fluc_5000_2000_100", p, "2020..."; notes="|1><1| projection")
 	display(pl)
 	#pl = makePlot(probabilities, results[1], L)
 	#return pl
 end
 
-f([4, 6, 8], [10000, 5000, 300])
+f([4, 6, 8], [5000, 2000, 100])
 #f([2], [5000])

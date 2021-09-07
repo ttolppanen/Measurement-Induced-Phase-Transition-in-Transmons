@@ -9,9 +9,10 @@ function asdasd(mat, dim)
 end
 
 function f()
-	dim = 10000
-	a = ones(dim, dim)
-	a .= zeros(dim, dim)
+	w = [1, 2, 3]
+	m1 = [1 2 3; 3 4 5; 1 2 3]
+	m2 = [1,2,3]
+	@time a = w' * w
 end
 
-@time f()
+f()

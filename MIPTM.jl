@@ -7,7 +7,7 @@ module MIPTM
 
 	export calcMean, calcMeanAndVar, expVal
 	export MIPT
-	export singleSubspaceProjectors, onesState, zeroOneState, oneZeroState
+	export singleSubspaceProjectors, onesState, zeroOneState, oneZeroState, twoZeroState
 	export generateProjectionOperators, generateSingleSite
 	export halfBosonNumber, properFluc
 	export savePlotData
@@ -65,6 +65,18 @@ module MIPTM
 		state = zeros(dimensions(L, N, cap=cap))
 		state[find_index(basisState, cap)] = 1.
 		return state
+	end
+	function twoZeroState(L::Int64, N::Int64; cap=N)
+		basisState::Array{Int64,1} = []
+		for i in 1:L
+			push!(basisState, 2*(i%2))
+		end
+		state = zeros(dimensions(L, N, cap=cap))
+		state[find_index(basisState, cap)] = 1.
+		return state
+	end
+	function twoZeroState(sp::SystemParameters)
+		return twoZeroState(sp.L, sp.N, cap=sp.cap)
 	end
 	function oneZeroState(sp::SystemParameters)
 		return oneZeroState(sp.L, sp.N, cap=sp.cap)

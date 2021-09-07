@@ -23,16 +23,16 @@ end
 function lanczos!(H, state, dim, sdim, V, h, w)
     V .= zero(ComplexF64)
     h .= zero(ComplexF64)
-    V[:, 1] .= normalize(state)
-    w .= H * state
+    V[:, 1] .= state
+    mul!(w, H, state)
     h[1, 1] = w' * state
-    w .-= h[1, 1] * state
+    w .-= h[1, 1] .* state
     for j in 2:sdim
         beta = norm(w)
-        V[:, j] .= w / beta
-        @views w = H * V[:, j]
+        V[:, j] .= w ./ beta
+        @views mul!(w, H, V[:, j])
         @views h[j, j] = w' * V[:, j]
-        @views w .-= (h[j, j] * V[:, j] + beta * V[:, j - 1])
+        @views w .-= (h[j, j] .* V[:, j] .+ beta .* V[:, j - 1])
         h[j - 1, j] = beta
         h[j, j - 1] = beta
     end

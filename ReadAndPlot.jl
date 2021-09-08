@@ -4,6 +4,7 @@ using BSON: @load
 function readAndPlot(title)
 	path = pwd() * "/Plots/" * title * "/data.bson"
 	@load path x y
+	display(typeof(y))
 	plot(x, y)
 end
 function readAndPlot!(title)

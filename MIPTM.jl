@@ -10,7 +10,7 @@ module MIPTM
 	export singleSubspaceProjectors, onesState, zeroOneState, oneZeroState, twoZeroState
 	export generateProjectionOperators, generateSingleSite
 	export halfBosonNumber, properFluc
-	export savePlotData
+	export savePlotData, readBsonFile
 
 	function generateProjectionOperators(L, N; cap=N)
 		out = []

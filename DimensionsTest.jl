@@ -3,10 +3,11 @@ include("OllisCode/Basis.jl")
 
 
 function f()
-	L = 8
+	L = 20
 	N = L
-	cap = 4
-	d = dimensions(L, N, cap=cap)
+	cap = 20
+	display("ASD")
+	@time d = dimensions(L, N, cap=cap)
 	display(d)
 end
 

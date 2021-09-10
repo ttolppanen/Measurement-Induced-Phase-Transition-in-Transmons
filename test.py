@@ -8,23 +8,29 @@ from julia import Main
 
 
 def findBestValue(p, S, dS):
-	leastError = 1000
+	bestQuality = 1000
 	bestRet = 0
-	loopValues = np.arange(0.1, 2.0, 0.1)
+	loopValues = np.arange(0.5, 2.5, 0.3)
 	for i in loopValues:
 		for j in loopValues:
-			ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.06, i, j)
-			error = sum(ret.errors)
-			if error < leastError:
+			ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.07, i, j)
+			sd = fssa.scaledata([4, 6, 8], p, S, dS, ret.rho, ret.nu, ret.zeta)
+			quality = fssa.quality(sd.x, sd.y, sd.dy)
+			if quality < bestQuality:
 				bestRet = ret
-				leastError = error
+				bestQuality = quality
 	return bestRet
 
 
-p, S, dS = Main.readBsonFile("Fixed_ELV_S_d3_dis_Attractive_Superfluid_7000_2000_100")
-# ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.06, 2.0, 0.5)
+p, S, dS = Main.readBsonFile("Fixed_ELV_S_d3_dis_Attractive_Insulator_10000_5000_300")
+# ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.06, 1.6, 0.5)
 ret = findBestValue(p, S, dS)
-auto_scaled_data = fssa.scaledata([4, 6, 8], p, S, dS, ret.rho, ret.nu, ret.zeta)
-plt.plot(auto_scaled_data.x.T, auto_scaled_data.y.T)
+sd = fssa.scaledata([4, 6, 8], p, S, dS, ret.rho, ret.nu, ret.zeta)
+plt.plot(sd.x.T, sd.y.T)
+plotName = "Insulator"
+plotName += "Min0"
+plotName += "_p{:.3f}_dp{:.3f}".format(ret.rho, ret.drho)
+# plt.savefig(plotName + ".png")
 print(ret)
+print("quality = " + str(fssa.quality(sd.x, sd.y, sd.dy)))
 plt.show()

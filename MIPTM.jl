@@ -12,19 +12,19 @@ module MIPTM
 	export halfBosonNumber, properFluc
 	export savePlotData, readBsonFile
 
-	function generateProjectionOperators(L, N; cap=N)
+	function generateProjectionOperators(L, N, dim; cap=N)
 		out = []
 		for l in 1:L
 			oneSiteOperators = []
 			for n in 0:min(N, cap)
-				push!(oneSiteOperators, projector(L, N, l, n, cap=cap))
+				push!(oneSiteOperators, projector(L, N, l, n, cap=cap, dim=dim))
 			end
 			push!(out, oneSiteOperators)
 		end
 		return out
 	end
 	function generateProjectionOperators(sp::SystemParameters)
-		return generateProjectionOperators(sp.L, sp.N, cap=sp.cap)
+		return generateProjectionOperators(sp.L, sp.N, sp.dim, cap=sp.cap)
 	end
 	function generateSingleSite(L, N, f::Function)
 		out = []
@@ -35,63 +35,63 @@ module MIPTM
 		end
 		return out
 	end
-	function singleSubspaceProjectors(L, N; cap=N)
-		f(L, N, l) = projector(L, N, l, 1, cap=cap)
+	function singleSubspaceProjectors(L, N, dim; cap=N)
+		f(L, N, l) = projector(L, N, l, 1, cap=cap, dim=dim)
 		return generateSingleSite(L, N, f)
 	end
 	function singleSubspaceProjectors(sp::SystemParameters)
-		singleSubspaceProjectors(sp.L, sp.N, cap=sp.cap)
+		singleSubspaceProjectors(sp.L, sp.N, sp.dim, cap=sp.cap)
 	end
-	function halfBosonNumber(Ψ, L, N; cap=N)
+	function halfBosonNumber(Ψ, L, N; cap=N) #If this is slow change number to take dim straigth...
 		nₕ = number(L, N, 1, cap=cap)
 		for i in 2:Int(round(L/2))
 			nₕ .+= number(L, N, i, cap=cap)
 		end
 		return expVal(Ψ, nₕ^2) - expVal(Ψ, nₕ)^2
 	end
-	function onesState(L::Int64; cap=L)
-		state = zeros(dimensions(L, L, cap=cap))
+	function onesState(L::Int64, dim; cap=L)
+		state = zeros(dim)
 		state[find_index(ones(Int64, L), cap)] = 1.
 		return state
 	end
 	function onesState(sp::SystemParameters)
-		return onesState(sp.L, cap=sp.cap)
+		return onesState(sp.L, sp.dim, cap=sp.cap)
 	end
-	function oneZeroState(L::Int64, N::Int64; cap=N)
+	function oneZeroState(L::Int64, N::Int64, dim; cap=N)
 		basisState::Array{Int64,1} = []
 		for i in 1:L
 			push!(basisState, i%2)
 		end
-		state = zeros(dimensions(L, N, cap=cap))
+		state = zeros(dim)
 		state[find_index(basisState, cap)] = 1.
 		return state
 	end
-	function twoZeroState(L::Int64, N::Int64; cap=N)
+	function twoZeroState(L::Int64, N::Int64, dim; cap=N)
 		basisState::Array{Int64,1} = []
 		for i in 1:L
 			push!(basisState, 2*(i%2))
 		end
-		state = zeros(dimensions(L, N, cap=cap))
+		state = zeros(dim)
 		state[find_index(basisState, cap)] = 1.
 		return state
 	end
 	function twoZeroState(sp::SystemParameters)
-		return twoZeroState(sp.L, sp.N, cap=sp.cap)
+		return twoZeroState(sp.L, sp.N, sp.dim, cap=sp.cap)
 	end
 	function oneZeroState(sp::SystemParameters)
-		return oneZeroState(sp.L, sp.N, cap=sp.cap)
+		return oneZeroState(sp.L, sp.N, sp.dim, cap=sp.cap)
 	end
-	function zeroOneState(L::Int64, N::Int64; cap=N)
+	function zeroOneState(L::Int64, N::Int64, dim; cap=N)
 		basisState::Array{Int64,1} = [0]
 		for i in 1:L-1
 			push!(basisState, i%2)
 		end
-		state = zeros(dimensions(L, N, cap=cap))
+		state = zeros(dim)
 		state[find_index(basisState, cap)] = 1.
 		return state
 	end
 	function zeroOneState(sp::SystemParameters)
-		return zeroOneState(sp.L, sp.N, cap=sp.cap)
+		return zeroOneState(sp.L, sp.N, sp.dim, cap=sp.cap)
 	end
 	function expVal(s::Array{Complex{Float64},1}, op::Union{Array{Float64,2}, Array{Complex{Float64},2}, SparseMatrixCSC{Float64,Int64}})#Jos s on ket
 		return real(s' * op * s)
@@ -186,15 +186,15 @@ module MIPTM
 	function evolveState!(Ψ, p::Parameters)
 		if p.sp.useKrylov
 			if p.bhp.isThereDisorder
-				propagate!(p, p.tempMatKrylov, Ψ)
+				propagate!(p, p.pa.tempMatKrylov, Ψ)
 			else
 				propagate!(p, p.bhp.𝐻, Ψ)
 			end
 		else
 			if p.bhp.isThereDisorder
-				Ψ .= p.tempMatNotKrylov * Ψ
+				Ψ .= normalize(p.pa.tempMatNotKrylov * Ψ)
 			else
-				Ψ .= p.expH * Ψ
+				Ψ .= normalize(p.pa.expH * Ψ)
 			end
 		end
 	end

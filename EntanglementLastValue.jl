@@ -37,7 +37,7 @@ function makeParam(L, traj)
 	projOp = singleSubspaceProjectors(sp)
 	#projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
-	bhp = BoseHubbardParameters(sp=sp, U=-5.14, Uσ=0.07, w=0.0, wσ=0.015)
+	bhp = BoseHubbardParameters(sp=sp, U=0.14)
 	#bhp = BoseHubbardParameters(sp=sp, U=-5.14)
 	#bhp = BoseHubbardParameters(sp=sp, U=0.0, J=1.0, Jσ=0.5)
 	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=traj)
@@ -59,10 +59,10 @@ function makePlot(probabilities, res, L)
 end
 
 function f(L, traj)
-	probabilities = 0.0:0.01:0.09
+	probabilities = [0.04, 0.05, 0.055, 0.06, 0.065, 0.07, 0.08]
 	results = []
 	variances = []
-	numOfFunctions = 3
+	numOfFunctions = 2
 	for _ in 1:numOfFunctions
 		push!(results, [])
 		push!(variances, [])
@@ -78,7 +78,7 @@ function f(L, traj)
 	end
 	pl = makePlot(probabilities, results[1], variances[1], L)
 	#plot!(probabilities, x->2.0/((x/0.02)^2 + 3))
-	#savePlotData(probabilities, (results[1], variances[1]), "ELV_S_2020test_5000_2000_100", p, "2020..."; notes="|1><1| projection")
+	#savePlotData(probabilities, (results[1], variances[1]), "ELV_S_5000_1000_100", p, "1111..."; notes="|1><1| projection")
 	#makePlot(probabilities, results[2], variances[2], L)
 	#savePlotData(probabilities, (results[2], variances[2]), "202020test_5000_2000_100", p, "2020..."; notes="|1><1| projection")
 	#makePlot(probabilities, results[3], L)
@@ -88,5 +88,5 @@ function f(L, traj)
 	#return pl
 end
 
-f([4, 6, 8], [5000, 2000, 100])
+f([4, 6, 8], [1, 1, 1])
 #f([2], [5000])

@@ -1,6 +1,6 @@
 module ParametersModule
 
-	using SparseArrays, Distributions, LinearAlgebra
+	using SparseArrays, Distributions, LinearAlgebra, InteractiveUtils
 	include.(["OllisCode/Operators.jl", "OllisCode/Basis.jl"])
 
 	export SystemParameters, ProjectionParameters, BoseHubbardParameters, Parameters
@@ -43,6 +43,10 @@ module ParametersModule
 		dim::Int64
 		useKrylov::Bool
 		function SystemParameters(;L::Int64, N::Int64, cap=N)
+			if cap > N
+				display("cap > N, setting cap = N")
+				cap = N
+			end
 			dim = dimensions(L, N, cap=cap)
 			useKrylov = shouldUseKrylov(dim)
 			new(L, N, cap, dim, useKrylov)
@@ -87,19 +91,34 @@ module ParametersModule
 			new(w, wσ, isThereDisorderInW, U, Uσ, isThereDisorderInU, J, Jσ, isThereDisorderInJ, isThereDisorder, 𝐻)
 		end
 	end
-	mutable struct Parameters
-		sp::SystemParameters
-		pp::ProjectionParameters
-		bhp::BoseHubbardParameters
-		sdim::Int64
-		t::TimeData #The duration of simulation, and also the time-step
-		traj::Int64 #Number of trajectories
+	mutable struct PreAllocated
 		tempMatKrylov::SparseMatrixCSC{Float64,Int64} #Matrices for disordered hamiltonian or the time evolution...
 		tempMatNotKrylov::Array{Complex{Float64},2}
 		expH::Array{Complex{Float64},2}
 		V::Array{Complex{Float64},2} #for krylov!
 		h::Array{Complex{Float64},2}
 		w::Array{Complex{Float64},1}
+		function PreAllocated(dim, sdim, 𝐻, useKrylov)
+			tempMatKrylov = spzeros(dim, dim)
+			tempMatNotKrylov = zeros(dim, dim)
+			V = zeros(ComplexF64, dim, sdim)
+			h = zeros(ComplexF64, sdim, sdim)
+			w = zeros(ComplexF64, dim)
+			expH = zeros(dim, dim)
+			if !useKrylov
+				expH .= expM(-1im .* dt .* Matrix(𝐻)) #Maybe make it so that uhh this doesn't get allocated when it is not needed...
+			end
+			new(tempMatKrylov, tempMatNotKrylov, expH, V, h, w)
+		end
+	end
+	mutable struct Parameters
+		sp::SystemParameters
+		pp::ProjectionParameters
+		bhp::BoseHubbardParameters
+		pa::PreAllocated
+		sdim::Int64
+		t::TimeData #The duration of simulation, and also the time-step
+		traj::Int64 #Number of trajectories
 		Ψ₀::Array{Complex{Float64},1}
 		function Parameters(;sp::SystemParameters, pp::ProjectionParameters,
 					bhp::BoseHubbardParameters, dt::Float64, time::Float64,
@@ -111,13 +130,8 @@ module ParametersModule
 				display("sdim larger than dimensions! Changed sdim = dimensions.")
 				sdim = sp.dim
 			end
-			tempMatKrylov = spzeros(sp.dim, sp.dim)
-			tempMatNotKrylov = zeros(sp.dim, sp.dim)
-			V = zeros(ComplexF64, sp.dim, sdim)
-			h = zeros(ComplexF64, sdim, sdim)
-			w = zeros(ComplexF64, sp.dim)
-			expH = expM(-1im * dt * Matrix(bhp.𝐻))
-			new(sp, pp, bhp, sdim, t, traj, tempMatKrylov, tempMatNotKrylov, expH, V, h, w, convert(Array{Complex{Float64},1}, Ψ₀))
+			pa = PreAllocated(sp.dim, sdim, bhp.𝐻, sp.useKrylov)
+			new(sp, pp, bhp, pa, sdim, t, traj, convert(Array{Complex{Float64},1}, Ψ₀))
 		end
 	end
 	function updateTempMatrices!(p::Parameters)
@@ -130,15 +144,15 @@ module ParametersModule
 		end
 	end
 	function makeDisorderHamiltonian!(p::Parameters)
-		p.tempMatKrylov .= copy(p.bhp.𝐻)
+		p.pa.tempMatKrylov .= copy(p.bhp.𝐻)
 		if p.bhp.isThereDisorderInW
-			p.tempMatKrylov .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
+			p.pa.tempMatKrylov .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
 		end
 		if p.bhp.isThereDisorderInU
-			p.tempMatKrylov .+= interaction(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
+			p.pa.tempMatKrylov .+= interaction(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
 		end
 		if p.bhp.isThereDisorderInJ
-			p.tempMatKrylov .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
+			p.pa.tempMatKrylov .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
 		end
 	end
 	function makeDisorderedTimeEvolution!(p::Parameters)
@@ -152,7 +166,7 @@ module ParametersModule
 		if p.bhp.isThereDisorderInJ
 			mat .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
 		end
-		p.tempMatNotKrylov .= expM(-1im * p.t.dt * Matrix(mat))
+		p.pa.tempMatNotKrylov .= expM(-1im .* p.t.dt .* Matrix(mat))
 		nothing
 	end
 	#=
@@ -179,7 +193,7 @@ module ParametersModule
 	function shouldUseKrylov(dim)
 		return dim > 1000
 	end
-	function expM(M)
+	function expM(M::Array{Complex{Float64},2})::Array{Complex{Float64},2}
 		va, U = eigen(M)
 		d = U' * M * U
 		d .= exp(Diagonal(d))

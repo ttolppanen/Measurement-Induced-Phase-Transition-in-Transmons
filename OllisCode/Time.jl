@@ -64,7 +64,7 @@ end
 
 
 function propagate!(p::Parameters, H::SparseMatrixCSC{Float64,Int64}, state)
-    propagate!(H, state, p.t.dt, p.sp.dim, p.sdim, p.V, p.h, p.w)
+    propagate!(H, state, p.t.dt, p.sp.dim, p.sdim, p.pa.V, p.pa.h, p.pa.w)
 end
 function propagate!(H::SparseMatrixCSC{Float64,Int64}, state, dt::Float64, dim::Int64, sdim::Int64, V, h, w)
     lanczos!(H, state, dim, sdim, V, h, w)

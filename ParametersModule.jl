@@ -83,32 +83,33 @@ module ParametersModule
 			isThereDisorder = isThereDisorderInW || isThereDisorderInU || isThereDisorderInJ
 			𝐻 = spzeros(sp.dim, sp.dim)
 			if !isThereDisorderInJ
-				𝐻 .+= J .* hopping(sp.L, sp.N, cap=sp.cap)
+				𝐻 .+= J .* hopping(sp.L, sp.N, sp.dim, cap=sp.cap)
 			end
 			if !isThereDisorderInU
-				𝐻 .+= U .* interaction(sp.L, sp.N, cap=sp.cap)
+				𝐻 .+= U .* interaction(sp.L, sp.N, sp.dim, cap=sp.cap)
 			end
 			new(w, wσ, isThereDisorderInW, U, Uσ, isThereDisorderInU, J, Jσ, isThereDisorderInJ, isThereDisorder, 𝐻)
 		end
 	end
 	mutable struct PreAllocated
-		tempMatKrylov::SparseMatrixCSC{Float64,Int64} #Matrices for disordered hamiltonian or the time evolution...
-		tempMatNotKrylov::Array{Complex{Float64},2}
-		expH::Array{Complex{Float64},2}
-		V::Array{Complex{Float64},2} #for krylov!
-		h::Array{Complex{Float64},2}
-		w::Array{Complex{Float64},1}
-		function PreAllocated(dim, sdim, 𝐻, useKrylov)
-			tempMatKrylov = spzeros(dim, dim)
-			tempMatNotKrylov = zeros(dim, dim)
-			V = zeros(ComplexF64, dim, sdim)
-			h = zeros(ComplexF64, sdim, sdim)
-			w = zeros(ComplexF64, dim)
-			expH = zeros(dim, dim)
-			if !useKrylov
-				expH .= expM(-1im .* dt .* Matrix(𝐻)) #Maybe make it so that uhh this doesn't get allocated when it is not needed...
+		tempMatKrylov::Union{SparseMatrixCSC{Float64,Int64}, Nothing} #Matrices for disordered hamiltonian or the time evolution...
+		tempMatNotKrylov::Union{Array{Complex{Float64},2}, Nothing}
+		expH::Union{Array{Complex{Float64},2}, Nothing}
+		V::Union{Array{Complex{Float64},2}, Nothing} #for krylov!
+		h::Union{Array{Complex{Float64},2}, Nothing}
+		w::Union{Array{Complex{Float64},1}, Nothing}
+		function PreAllocated(dim, sdim, dt, 𝐻, useKrylov)
+			if useKrylov
+				tempMatKrylov = spzeros(dim, dim)
+				V = zeros(ComplexF64, dim, sdim)
+				h = zeros(ComplexF64, sdim, sdim)
+				w = zeros(ComplexF64, dim)
+				new(tempMatKrylov, nothing, nothing, V, h, w)
+			else
+				tempMatNotKrylov = zeros(dim, dim)
+				expH = expM(-1im .* dt .* Matrix(𝐻))
+				new(nothing, tempMatNotKrylov, expH, nothing, nothing, nothing)
 			end
-			new(tempMatKrylov, tempMatNotKrylov, expH, V, h, w)
 		end
 	end
 	mutable struct Parameters
@@ -130,7 +131,7 @@ module ParametersModule
 				display("sdim larger than dimensions! Changed sdim = dimensions.")
 				sdim = sp.dim
 			end
-			pa = PreAllocated(sp.dim, sdim, bhp.𝐻, sp.useKrylov)
+			pa = PreAllocated(sp.dim, sdim, dt, bhp.𝐻, sp.useKrylov)
 			new(sp, pp, bhp, pa, sdim, t, traj, convert(Array{Complex{Float64},1}, Ψ₀))
 		end
 	end
@@ -146,25 +147,25 @@ module ParametersModule
 	function makeDisorderHamiltonian!(p::Parameters)
 		p.pa.tempMatKrylov .= copy(p.bhp.𝐻)
 		if p.bhp.isThereDisorderInW
-			p.pa.tempMatKrylov .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
+			p.pa.tempMatKrylov .+= disorder(p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
 		end
 		if p.bhp.isThereDisorderInU
-			p.pa.tempMatKrylov .+= interaction(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
+			p.pa.tempMatKrylov .+= interaction(p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
 		end
 		if p.bhp.isThereDisorderInJ
-			p.pa.tempMatKrylov .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
+			p.pa.tempMatKrylov .+= hopping(p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
 		end
 	end
 	function makeDisorderedTimeEvolution!(p::Parameters)
 		mat = copy(p.bhp.𝐻)
 		if p.bhp.isThereDisorderInW
-			mat .+= disorder(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
+			mat .+= disorder(p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap, dis = disorderForW(p.bhp, p.sp.L))
 		end
 		if p.bhp.isThereDisorderInU
-			mat .+= interaction(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
+			mat .+= interaction(p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap, dis = disorderForU(p.bhp, p.sp.L))
 		end
 		if p.bhp.isThereDisorderInJ
-			mat .+= hopping(p.sp.L, p.sp.N, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
+			mat .+= hopping(p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
 		end
 		p.pa.tempMatNotKrylov .= expM(-1im .* p.t.dt .* Matrix(mat))
 		nothing

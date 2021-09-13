@@ -17,7 +17,7 @@ module MIPTM
 		for l in 1:L
 			oneSiteOperators = []
 			for n in 0:min(N, cap)
-				push!(oneSiteOperators, projector(L, N, l, n, cap=cap, dim=dim))
+				push!(oneSiteOperators, projector(L, N, dim, l, n, cap=cap))
 			end
 			push!(out, oneSiteOperators)
 		end
@@ -36,16 +36,16 @@ module MIPTM
 		return out
 	end
 	function singleSubspaceProjectors(L, N, dim; cap=N)
-		f(L, N, l) = projector(L, N, l, 1, cap=cap, dim=dim)
+		f(L, N, l) = projector(L, N, dim, l, 1, cap=cap)
 		return generateSingleSite(L, N, f)
 	end
 	function singleSubspaceProjectors(sp::SystemParameters)
 		singleSubspaceProjectors(sp.L, sp.N, sp.dim, cap=sp.cap)
 	end
-	function halfBosonNumber(Ψ, L, N; cap=N) #If this is slow change number to take dim straigth...
-		nₕ = number(L, N, 1, cap=cap)
+	function halfBosonNumber(Ψ, L, N, dim; cap=N) #If this is slow change number to take dim straigth...
+		nₕ = number(L, N, dim, 1, cap=cap)
 		for i in 2:Int(round(L/2))
-			nₕ .+= number(L, N, i, cap=cap)
+			nₕ .+= number(L, N, dim, i, cap=cap)
 		end
 		return expVal(Ψ, nₕ^2) - expVal(Ψ, nₕ)^2
 	end
@@ -140,9 +140,9 @@ module MIPTM
         return mean, var
     end
 	function properFluc(sol, p::Parameters)
-		nₕ = number(p.sp.L, p.sp.N, 1, cap=p.sp.cap)
+		nₕ = number(p.sp.L, p.sp.N, p.sp.dim, 1, cap=p.sp.cap)
 		for i in 2:Int(round(p.sp.L/2))
-			nₕ .+= number(p.sp.L, p.sp.N, i, cap=p.sp.cap)
+			nₕ .+= number(p.sp.L, p.sp.N, p.sp.dim, i, cap=p.sp.cap)
 		end
 		f1(Ψ) = expVal(Ψ, nₕ)
 		f2(Ψ) = expVal(Ψ, nₕ.^2)

@@ -14,9 +14,7 @@ function readAndPlot!(title)
 end
 
 function f()
-	readAndPlot("Fixed_ELV_S_d3_dis_Attractive_Insulator_10000_5000_300")
-	#readAndPlot!("ELV_S_d3_dis_Attractive_Insulator_7000_2000_100")
-	readAndPlot!("ELV_S_2020test_5000_2000_100")
+	readAndPlot("ELV_S_5000_1000_300")
 end
 
 f()

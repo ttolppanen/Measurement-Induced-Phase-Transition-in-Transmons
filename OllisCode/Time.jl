@@ -21,8 +21,8 @@ function lanczos(H, state, sdim)
     return V, h
 end
 function lanczos!(H, state, dim, sdim, V, h, w)
-    V .= zero(ComplexF64)
-    h .= zero(ComplexF64)
+    #V .= zero(ComplexF64)
+    #h .= zero(ComplexF64)
     V[:, 1] .= state
     mul!(w, H, state)
     h[1, 1] = w' * state

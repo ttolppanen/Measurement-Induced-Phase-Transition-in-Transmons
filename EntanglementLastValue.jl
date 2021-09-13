@@ -1,4 +1,5 @@
 using Plots, MIPTM, Distributions, ParametersModule
+using BSON: @save, @load
 include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl",
 		"OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
@@ -6,7 +7,7 @@ function calcWithDifferentProb(p::Parameters, probabilities)
 	out = []
 	outVar = []
 	ent(Ψ) = entanglement_entropy(p.sp.L, p.sp.N, Ψ, Int(p.sp.L / 2), cap=p.sp.cap)
-	fluc(Ψ) = halfBosonNumber(Ψ, p.sp.L, p.sp.N, cap=p.sp.cap)
+	fluc(Ψ) = halfBosonNumber(Ψ, p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap)
 	functions = [ent, fluc]
 	for _ in 1:length(functions)
 		push!(out, [])
@@ -32,7 +33,7 @@ end
 function makeParam(L, traj)
 	#N = floor(Int, L/2)
 	N = L
-	sp = SystemParameters(L=L, N=N, cap=2)
+	sp = SystemParameters(L=L, N=N)
 	state = onesState(sp)
 	projOp = singleSubspaceProjectors(sp)
 	#projOp = generateProjectionOperators(sp)
@@ -57,12 +58,19 @@ function makePlot(probabilities, res, L)
 	end
 	return pl
 end
+function replaceData(title, index, newData)
+	path = pwd() * "/Plots/" * title * "/data.bson"
+	@load path x y
+	y[1][index] = newData[1]
+	y[2][index] = newData[2]
+	@save path x y
+end
 
 function f(L, traj)
-	probabilities = [0.04, 0.05, 0.055, 0.06, 0.065, 0.07, 0.08]
+	probabilities = [0.01, 0.02, 0.03, 0.04, 0.05, 0.055, 0.06, 0.0625, 0.065, 0.0675, 0.07, 0.075, 0.08, 0.09]
 	results = []
 	variances = []
-	numOfFunctions = 2
+	numOfFunctions = 1
 	for _ in 1:numOfFunctions
 		push!(results, [])
 		push!(variances, [])
@@ -77,6 +85,7 @@ function f(L, traj)
 		end
 	end
 	pl = makePlot(probabilities, results[1], variances[1], L)
+	replaceData("ELV_S_5000_1000_100", 3, (results[1][1], variances[1][1]))
 	#plot!(probabilities, x->2.0/((x/0.02)^2 + 3))
 	#savePlotData(probabilities, (results[1], variances[1]), "ELV_S_5000_1000_100", p, "1111..."; notes="|1><1| projection")
 	#makePlot(probabilities, results[2], variances[2], L)
@@ -88,5 +97,5 @@ function f(L, traj)
 	#return pl
 end
 
-f([4, 6, 8], [1, 1, 1])
+f([8], [300])
 #f([2], [5000])

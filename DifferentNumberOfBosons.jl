@@ -1,5 +1,5 @@
 using MIPTM, ParametersModule, Plots
-include.("OllisCode/Entropy.jl")
+include.(["OllisCode/Entropy.jl", "OllisCode/Basis.jl"])
 
 function calcWithDifferentProb(probabilities, p::Parameters, funcs)
 	out = []
@@ -75,21 +75,32 @@ end
 function functionsToCalculate()
 	entForState(Ψ, p) = entanglement_entropy(p.sp.L, p.sp.N, Ψ, Int(p.sp.L / 2), cap=p.sp.cap)
 	entanglement(sol, p) = calcMeanAndVar(sol, Ψ -> entForState(Ψ, p))
-	return [entanglement, properFluc]
+	return [entanglement]
 end
 function makeParam(st::ST)
-	sp = SystemParameters(L=st.size, N=st.size)
-	state = onesState(sp)
+	sp = SystemParameters(L=6, N=st.size)
+	state = firstState(sp)
 	#projOp = singleSubspaceProjectors(sp)
 	projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
 	bhp = BoseHubbardParameters(sp=sp, U=0.14)
 	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=st.traj)
 end
+function firstState(sp)
+	L = sp.L; N = sp.N; dim = sp.dim; cap = sp.cap
+	basisState::Array{Int64,1} = first_state(L, N, cap)
+	state = zeros(dim)
+	state[find_index(basisState, cap)] = 1.
+	return state
+end
 
 function f()
-	probabilities = 0.01:0.02:0.1
-	sizesAndTraj = [ST(4, 1000), ST(6, 100), ST(8, 10)]
+	probabilities = 0.01:0.02:0.2
+	sizesAndTraj = []
+	maxN = 8
+	for i in 2:2:maxN
+		push!(sizesAndTraj, ST(i, 100))
+	end
 	funcs = functionsToCalculate()
 	results = calcAll(probabilities, sizesAndTraj, funcs) #size[functions[result1, result2,...],...]
 

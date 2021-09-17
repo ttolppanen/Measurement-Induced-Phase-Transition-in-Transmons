@@ -115,7 +115,11 @@ module MIPTM
             threads[Threads.threadid()] .+= f.(sol[i])
         end
 		mean = sum(threads)
-		return mean ./ numOfVal
+		mean ./= numOfVal
+		if length(mean) == 1
+			return mean[1]
+		end
+		return mean
     end
 	function calcMeanAndVar(sol, f::Function)
 		numOfVal = length(sol)
@@ -137,6 +141,9 @@ module MIPTM
 		mean .= mean./numOfVal
 		var .= var./numOfVal .- mean.^2
 		var .= round.(var, digits=12)
+		if length(mean) == 1
+			return mean[1], var[1]
+		end
         return mean, var
     end
 	function properFluc(sol, p::Parameters)

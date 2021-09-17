@@ -1,18 +1,13 @@
 using Plots
 
-function asdasd(mat, dim)
-	for i in 1:dim
-		for j in 1:dim
-			mat[j, i] = 0
-		end
-	end
+struct asd
+	a
 end
 
 function f()
-	w = [1, 2, 3]
-	m1 = [1 2 3; 3 4 5; 1 2 3]
-	m2 = [1,2,3]
-	@time a = w' * w
+	a = 2
+	b = a[1]
+	display(length(a))
 end
 
 f()

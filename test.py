@@ -12,17 +12,18 @@ def findBestValue(p, S, dS):
 	bestRet = 0
 	loopValues = np.arange(0.2, 2.5, 0.2)
 	for i in loopValues:
-		ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.07, 2.0, i)
-		sd = fssa.scaledata([4, 6, 8], p, S, dS, ret.rho, ret.nu, ret.zeta)
-		quality = fssa.quality(sd.x, sd.y, sd.dy)
-		if quality < bestQuality:
-			bestRet = ret
-			bestQuality = quality
+		for j in loopValues:
+			ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.06, j, i)
+			sd = fssa.scaledata([4, 6, 8], p, S, dS, ret.rho, ret.nu, ret.zeta)
+			quality = fssa.quality(sd.x, sd.y, sd.dy)
+			if quality < bestQuality:
+				bestRet = ret
+				bestQuality = quality
 	return bestRet
 
 
-p, S, dS = Main.readBsonFile("ELV_S_5000_1000_300")
-ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.06, 2.0, 2.0)
+p, S, dS = Main.readBsonFile("Fluc_S_5000_1000_300")
+ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.06, 4.5, 3)
 # ret = findBestValue(p, S, dS)
 sd = fssa.scaledata([4, 6, 8], p, S, dS, ret.rho, ret.nu, ret.zeta)
 plt.plot(sd.x.T, sd.y.T)

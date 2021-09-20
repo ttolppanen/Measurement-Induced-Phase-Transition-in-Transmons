@@ -16,10 +16,11 @@ function calcWithDifferentProb(probabilities, p::Parameters, funcs)
 	end
 	return out
 end
-function calcAll(prob, sizesAndTraj, funcs)
+function calcAll(prob, initialStates, funcs)
 	out = []
-	for st in sizesAndTraj
-		p = makeParam(st)
+	p = makeParam()
+	for Ψ in initialStates
+		p.Ψ₀ = toState(Ψ, p.sp)
 		res = calcWithDifferentProb(prob, p, funcs)
 		push!(out, res)
 	end
@@ -40,10 +41,6 @@ function addResult!(result::Result, newRes::Float64)
 	push!(result.mean, newRes)
 end
 
-struct ST #SizeAndTrajectory
-	size::Int64
-	traj::Int64
-end
 function convertResults(sol)
 	numOfSizes = length(sol)
 	numOfFunctions = length(sol[1])
@@ -77,14 +74,16 @@ function functionsToCalculate()
 	entanglement(sol, p) = calcMeanAndVar(sol, Ψ -> entForState(Ψ, p))
 	return [entanglement]
 end
-function makeParam(st::ST)
-	sp = SystemParameters(L=6, N=st.size)
+function makeParam()
+	L = 4; N = 4
+	traj = 1000
+	sp = SystemParameters(L=L, N=N)
 	state = firstState(sp)
 	#projOp = singleSubspaceProjectors(sp)
 	projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
 	bhp = BoseHubbardParameters(sp=sp, U=0.14)
-	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=st.traj)
+	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=traj)
 end
 function firstState(sp)
 	L = sp.L; N = sp.N; dim = sp.dim; cap = sp.cap
@@ -93,23 +92,21 @@ function firstState(sp)
 	state[find_index(basisState, cap)] = 1.
 	return state
 end
+function toState(s, sp)
+	state = zeros(sp.dim)
+	state[find_index(s, sp.cap)] = 1.
+	return state
+end
 
 function f()
-	probabilities = 0.01:0.01:0.1
-	sizesAndTraj = []
-	maxN = 8
-	for i in 2:maxN
-		push!(sizesAndTraj, ST(i, 100))
-	end
+	probabilities = 0.01:0.02:0.2
+	states = [[4, 0, 0, 0], [2, 0, 2, 0], [1, 1, 1, 1], [1, 0, 0, 3]]
 	funcs = functionsToCalculate()
-	results = calcAll(probabilities, sizesAndTraj, funcs) #size[functions[result1, result2,...],...]
+	results = calcAll(probabilities, states, funcs) #size[functions[result1, result2,...],...]
 
-	p = makeParam(sizesAndTraj[1])
+	p = makeParam()
 	results = convertResults(results)
 	pl = plotForFunction(probabilities, results, 1)
-	mean = [i.mean for i in results[1]]
-	var = [i.variance for i in results[1]]
-	savePlotData(probabilities, (mean, var), "NTest", p, "|EntanglementLastValueP002.jl>"; notes="Total Projection")
 	display(pl)
 end
 

@@ -22,10 +22,11 @@ def findBestValue(p, S, dS):
 	return bestRet
 
 
-p, S, dS = Main.readBsonFile("Fluc_S_5000_1000_300")
-ret = fssa.autoscale([4, 6, 8], p, S, dS, 0.06, 4.5, 3)
+p, S, dS = Main.readBsonFile("Ntest")
+L = [21, 56, 126, 252, 462, 792, 1287]
+ret = fssa.autoscale(L, p, S, dS, 0.02999, 2.73, 1.78)
 # ret = findBestValue(p, S, dS)
-sd = fssa.scaledata([4, 6, 8], p, S, dS, ret.rho, ret.nu, ret.zeta)
+sd = fssa.scaledata(L, p, S, dS, ret.rho, ret.nu, ret.zeta)
 plt.plot(sd.x.T, sd.y.T)
 plotName = "Insulator"
 plotName += "Min0"

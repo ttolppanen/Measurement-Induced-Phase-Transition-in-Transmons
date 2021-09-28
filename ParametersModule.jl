@@ -48,7 +48,7 @@ module ParametersModule
 				cap = N
 			end
 			dim = dimensions(L, N, cap=cap)
-			useKrylov = shouldUseKrylov(dim)
+			useKrylov = dim > 1000
 			new(L, N, cap, dim, useKrylov)
 		end
 	end
@@ -190,9 +190,6 @@ module ParametersModule
 	end
 	function disorderForJ(bhp::BoseHubbardParameters, L)
 		return returnDisorder(L, bhp.J, bhp.Jσ)
-	end
-	function shouldUseKrylov(dim)
-		return dim > 1000
 	end
 	function expM(M::Array{Complex{Float64},2})::Array{Complex{Float64},2}
 		va, U = eigen(M)

@@ -238,7 +238,7 @@ module MIPTM
 		return [state]
 	end
 	function MIPT(p::Parameters; onlyLastValue=false, projectAfterTimeStep=false)
-		if p.traj > 1000
+		if p.traj >= 1000
 			out = arrayForEveryThread()
 			parameters = parametersForEveryThread(p)
 			Threads.@threads for _ in 1:p.traj

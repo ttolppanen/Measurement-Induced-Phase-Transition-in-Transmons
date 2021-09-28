@@ -14,7 +14,8 @@ function f()
 	p = 0.06
 	v = 5.0
 	C = 2.00
-	prob, ent = readBsonFile("NTest")
+	prob, ent = readBsonFile("Fluc_S_5000_1000_300")
+	display(prob)
 	x = []
 	y = []
 	L = [21, 56, 126, 252, 462, 792, 1287]

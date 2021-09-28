@@ -6,6 +6,24 @@ function calcD(L, N, cap)
 	d = dimensions(L, N)
 	return d - cut
 end
+function findUpperN(L, d)
+	N = 0
+	L = Int((L + 2) / 2)
+	while true
+		N += 1
+		dim = dimensions(L, N)
+		if dim == d
+			display(N)
+			break
+		elseif dim > d
+			display("EII")
+			break
+		end
+	end
+end
+function totalDim(L, N)
+	return N^L
+end
 
 function f()
 	L = 4
@@ -17,16 +35,11 @@ function f()
 	display(dMaybe)
 end
 function a()
-	L = 4
-	N = L
-	s = first_state(L, N, N)
-	display("HOOI")
-	display(s)
+	L = 8
+	N = 5
 	d = dimensions(L, N)
-	for _ in 2:d
-		next!(s, N)
-		display(s)
-	end
+	display(d)
+	display(totalDim(4, 5))
 end
 
 a()

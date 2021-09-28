@@ -1,0 +1,13 @@
+L = 6
+N = 2
+cap = 2
+sdim = 3
+U = 5.0
+J = 1.0
+p = 0.0
+f = 1.0
+dt = 0.02
+t = 30.0
+Ψ₀ = |N000000>
+
+Total Projection

@@ -56,6 +56,13 @@ function convertResults(sol)
 	end
 	return out
 end
+function convertForSize(sol)
+	out = []
+	for i in sol
+		push!(out, i[1])
+	end
+	return out
+end
 function plotForFunction(probabilities, results, i)
 	numOfSizes = length(results[1])
 	if length(results[i][1].variance) == 0
@@ -83,7 +90,7 @@ function makeParam(st::ST)
 	#projOp = singleSubspaceProjectors(sp)
 	projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
-	bhp = BoseHubbardParameters(sp=sp, U=0.14)
+	bhp = BoseHubbardParameters(sp=sp, U=5.0)
 	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=st.traj)
 end
 function firstState(sp)
@@ -95,21 +102,29 @@ function firstState(sp)
 end
 
 function f()
-	probabilities = 0.01:0.01:0.1
+	probabilities = [0.08]
 	sizesAndTraj = []
 	maxN = 8
 	for i in 2:maxN
-		push!(sizesAndTraj, ST(i, 100))
+		push!(sizesAndTraj, ST(i, 500))
 	end
 	funcs = functionsToCalculate()
 	results = calcAll(probabilities, sizesAndTraj, funcs) #size[functions[result1, result2,...],...]
 
+	#=
 	p = makeParam(sizesAndTraj[1])
 	results = convertResults(results)
 	pl = plotForFunction(probabilities, results, 1)
 	mean = [i.mean for i in results[1]]
 	var = [i.variance for i in results[1]]
-	savePlotData(probabilities, (mean, var), "NTest", p, "|EntanglementLastValueP002.jl>"; notes="Total Projection")
+	#savePlotData(probabilities, (mean, var), "NTestU5", p, "|N000000>"; notes="Total Projection")
+	=#
+
+	results = convertForSize(results)
+	sizes = [st.size for st in sizesAndTraj]
+	mean = [i.mean[1] for i in results]
+	var = [i.variance[1] for i in results]
+	pl = plot(sizes, mean, ribbon=sqrt.(var))
 	display(pl)
 end
 

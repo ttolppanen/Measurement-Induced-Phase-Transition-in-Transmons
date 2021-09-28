@@ -163,7 +163,7 @@ function interaction(L, N, dim; cap=N, dis = ones(L))
 
         for site in 1:L
             if basis_vector[site] > 1
-                HU[i, i] += -0.5 * basis_vector[site] * (basis_vector[site] - 1) * dis[L]
+                HU[i, i] += -0.5 * basis_vector[site] * (basis_vector[site] - 1) * dis[site]
             end
         end
 
@@ -187,7 +187,7 @@ function hopping(L, N, dim; cap=N, periodic = false, dis = ones(L))
                 modified_vector[site] -= 1
                 modified_vector[site + 1] += 1
                 index = find_index(modified_vector, cap)
-                HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1]) * dis[L]
+                HJ[i, index] = sqrt(basis_vector[site] * modified_vector[site + 1]) * dis[site]
                 HJ[index, i] = HJ[i, index]
             end
         end

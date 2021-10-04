@@ -1,0 +1,3 @@
+These run in the total/complete space, so these are not limited to the manifold with
+the same number of bosons. These could be used to calculate stuff when the projections
+do not conserve the boson number, but these code are out of date... They might still work?

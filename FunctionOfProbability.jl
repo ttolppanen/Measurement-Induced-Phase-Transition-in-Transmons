@@ -41,7 +41,8 @@ function addResult!(result::Result, newRes::Float64)
 end
 
 struct ST #SizeAndTrajectory
-	size::Tuple{Int64, Int64}
+	L::Int64
+	N::Int64
 	traj::Int64
 end
 function convertResults(sol)
@@ -76,15 +77,15 @@ function functionsToCalculate()
 	entForState(Ψ, p) = entanglement_entropy(p.sp.L, p.sp.N, Ψ, Int(p.sp.L / 2), cap=p.sp.cap)
 	entanglement(sol, p) = calcMeanAndVar(sol, Ψ -> entForState(Ψ, p))
 	state(sol, p) = calcMeanAndVar(sol, Ψ -> expVal(Ψ, firstState(p.sp) * firstState(p.sp)'))
-	return [entanglement]
+	return [entanglement] #These need to be functions that take in the solution (sol) and the parameters (p), so f(sol, p)
 end
 function makeParam(st::ST)
-	sp = SystemParameters(L=st.size[1], N=st.size[2])
-	state = firstState(sp)
-	#projOp = singleSubspaceProjectors(sp)
-	projOp = generateProjectionOperators(sp)
+	sp = SystemParameters(L=st.L, N=st.N)
+	state = onesState(sp)
+	projOp = singleSubspaceProjectors(sp)
+	#projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
-	bhp = BoseHubbardParameters(sp=sp, U=4.0)
+	bhp = BoseHubbardParameters(sp=sp, U=5.0)
 	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=st.traj)
 end
 function meanAndVar(results)
@@ -99,13 +100,13 @@ function firstState(sp)
 end
 
 function f()
-	probabilities = 0.02:0.02:0.1
-	sizesAndTraj = [ST((4,2), 5000), ST((6,3), 2000), ST((8,4), 1000)]
+	probabilities = 0.0:0.001:0.01
+	sizesAndTraj = [ST(4,4, 1000), ST(6,6, 500), ST(8,8, 60)]
 	funcs = functionsToCalculate()
 	results = calcAll(probabilities, sizesAndTraj, funcs) #size[functions[result1, result2,...],...]
 
 	p = makeParam(sizesAndTraj[1])
-	results = convertResults(results)
+	results = convertResults(results) #functions[size[result1, result2,...],...]
 	pl = plotForFunction(probabilities, results, 1)
 	#savePlotData(probabilities, meanAndVar(results[1]), "DisorderTest", p, "|N00000>"; notes="Total Projection")
 	#plotForFunction(probabilities, results, 2)

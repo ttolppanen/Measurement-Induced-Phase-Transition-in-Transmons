@@ -1,0 +1,3 @@
+So I noticed that the function that makes the interaction term already has the negative sign
+in it, so every plot that says "Attractive" is actually repulsive. So in every data file
+where U is positive, this is in the attractive model.

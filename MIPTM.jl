@@ -201,7 +201,8 @@ module MIPTM
 			if p.bhp.isThereDisorder
 				Ψ .= normalize(p.pa.tempMatNotKrylov * Ψ)
 			else
-				Ψ .= normalize(p.pa.expH * Ψ)
+				Ψ .= p.pa.expH * Ψ
+				normalize!(Ψ)
 			end
 		end
 	end
@@ -238,7 +239,15 @@ module MIPTM
 		return [state]
 	end
 	function MIPT(p::Parameters; onlyLastValue=false, projectAfterTimeStep=false)
-		if p.traj >= 1000
+		if p.pp.p == 0.0 && !p.bhp.isThereDisorder
+			out = []
+			if onlyLastValue
+				push!(out, solveLastTimeStep(p, projectAfterTimeStep))
+			else
+				push!(out, solveEveryTimeStep(p, projectAfterTimeStep))
+			end
+			return out
+		elseif p.traj >= 1000
 			out = arrayForEveryThread()
 			parameters = parametersForEveryThread(p)
 			Threads.@threads for _ in 1:p.traj

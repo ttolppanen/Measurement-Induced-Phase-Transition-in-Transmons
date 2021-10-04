@@ -76,13 +76,13 @@ function functionsToCalculate()
 end
 function makeParam()
 	L = 4; N = 4
-	traj = 1000
+	traj = 4000
 	sp = SystemParameters(L=L, N=N)
 	state = firstState(sp)
 	#projOp = singleSubspaceProjectors(sp)
 	projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
-	bhp = BoseHubbardParameters(sp=sp, U=0.14)
+	bhp = BoseHubbardParameters(sp=sp, U=5.14)
 	p = Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=3, dt=0.02, time=30.0, traj=traj)
 end
 function firstState(sp)
@@ -99,7 +99,7 @@ function toState(s, sp)
 end
 
 function f()
-	probabilities = 0.01:0.02:0.2
+	probabilities = 0.0:0.001:0.04
 	states = [[4, 0, 0, 0], [2, 0, 2, 0], [1, 1, 1, 1], [1, 0, 0, 3]]
 	funcs = functionsToCalculate()
 	results = calcAll(probabilities, states, funcs) #size[functions[result1, result2,...],...]

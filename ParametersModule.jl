@@ -62,10 +62,10 @@ module ParametersModule
 	end
 	struct BoseHubbardParameters
 		w::Float64
-		wσ::Float64 #For disorder
+		wσ::Float64 #Standard deviation
 		isThereDisorderInW::Bool
 		U::Float64
-		Uσ::Float64 #For disorder
+		Uσ::Float64
 		isThereDisorderInU::Bool
 		J::Float64
 		Jσ::Float64
@@ -107,7 +107,7 @@ module ParametersModule
 				new(tempMatKrylov, nothing, nothing, V, h, w)
 			else
 				tempMatNotKrylov = zeros(dim, dim)
-				expH = expM(-1im .* dt .* Matrix(𝐻))
+				expH = exp(-1im .* dt .* Matrix(𝐻))
 				new(nothing, tempMatNotKrylov, expH, nothing, nothing, nothing)
 			end
 		end
@@ -167,7 +167,7 @@ module ParametersModule
 		if p.bhp.isThereDisorderInJ
 			mat .+= hopping(p.sp.L, p.sp.N, p.sp.dim, cap=p.sp.cap, dis = disorderForJ(p.bhp, p.sp.L))
 		end
-		p.pa.tempMatNotKrylov .= expM(-1im .* p.t.dt .* Matrix(mat))
+		p.pa.tempMatNotKrylov .= exp(-1im .* p.t.dt .* Matrix(mat))
 		nothing
 	end
 	#=

@@ -1,8 +1,8 @@
 module MIPTM
-	using DifferentialEquations, IterTools, LinearAlgebra, SparseArrays, Plots
+	using IterTools, LinearAlgebra, SparseArrays, Plots
 	using Distributions, ParametersModule
 	using Statistics: mean
-	using BSON: @save
+	using JLD2
 	include.(["OllisCode/Operators.jl", "OllisCode/Time.jl", "OllisCode/Density.jl", "OllisCode/Basis.jl", "OllisCode/Entropy.jl"])
 
 	export calcMean, calcMeanAndVar, expVal
@@ -284,13 +284,17 @@ module MIPTM
 		end
 		return out
 	end
-	function savePlotData(x, y, title::String, p::Parameters, initialState::String; notes="")
-		path = pwd() * "/Plots/" * title
+	function savePlotData4(x, y, title::String, p::Parameters4, initialState::String; notes="", folder="Plots", savetokataja=false)
+		path = pwd() * "/" * folder * "/" * title
+		if savetokataja
+			path = "/data/htolppan" * "/" * folder * "/" * title
+		end
 		mkpath(path)
 		io = open(path * "/data.txt", "w")
 		println(io, "L = " * string(p.sp.L))
-		println(io, "N = " * string(p.sp.N))
-		println(io, "cap = " * string(p.sp.cap))
+		#println(io, "N = " * string(p.sp.N))
+		println(io, "N = " * string(round(Int64,p.sp.L/2)))
+		#println(io, "cap = " * string(p.sp.cap))
 		println(io, "sdim = " * string(p.sdim))
 		println(io, "U = " * string(p.bhp.U))
 		println(io, "J = " * string(p.bhp.J))
@@ -311,8 +315,8 @@ module MIPTM
 		end
 		println(io, "\n" * notes)
 		close(io)
-		@save path * "/" * "data.bson" x y
-		savefig(path * "/" * title * ".png")
+		jldsave(path * "/" * "data.jld2"; x, y)
+		#savefig(path * "/" * title * ".png")
 	end
 	function expM(M)
 		va, U = eigen(M)
@@ -321,6 +325,29 @@ module MIPTM
 		return U * d * U'
 	end
 end
+
+function projet_to_basis_state(Ψ)
+	probForProjection = rand(Float64)
+	pᵢ = 0
+	for i in eachindex(length(Ψ))
+		pᵢ += abs2(Ψ[i])
+		if probForProjection < pᵢ
+			s = zeros(ComplexF64, length(Ψ))
+			s[i] = 1
+			return s
+		end
+	end
+end
+function real_measurement_results(sol, op)
+	out = []
+	for Ψ in sol
+		projected_state = projet_to_basis_state(Ψ[end])
+		measurement_outcome = real(projected_state' * op * projected_state)
+		push!(out, measurement_outcome)
+	end
+	return out
+end
+
 #=
 function MIPTOnlyLastValue(p::Parameters)
 	out = arrayForEveryThread()

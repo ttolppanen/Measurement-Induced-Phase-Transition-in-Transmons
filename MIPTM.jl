@@ -11,6 +11,8 @@ module MIPTM
 	export generateProjectionOperators, generateSingleSite
 	export halfBosonNumber, properFluc
 	export savePlotData, readBsonFile
+	export Fluc
+	export real_measurement_results
 
 	function generateProjectionOperators(L, N, dim; cap=N)
 		out = []
@@ -41,6 +43,16 @@ module MIPTM
 	end
 	function singleSubspaceProjectors(sp::SystemParameters)
 		singleSubspaceProjectors(sp.L, sp.N, sp.dim, cap=sp.cap)
+	end
+	function Fluc(Ψ, sp)
+		return Fluc(Ψ, sp.L, sp.N, sp.dim; cap=sp.cap)
+	end
+	function Fluc(Ψ, L, N, dim; cap=N) #If this is slow change number to take dim straigth...
+		nₕ = number(L, N, dim, 1; cap=cap)
+		for i in 2:Int(round(L/2))
+			nₕ .+= number(L, N, dim, i; cap=cap)
+		end
+		return expVal(Ψ, nₕ^2) - expVal(Ψ, nₕ)^2
 	end
 	function halfBosonNumber(Ψ, L, N, dim; cap=N) #If this is slow change number to take dim straigth...
 		nₕ = number(L, N, dim, 1, cap=cap)
@@ -284,7 +296,7 @@ module MIPTM
 		end
 		return out
 	end
-	function savePlotData4(x, y, title::String, p::Parameters4, initialState::String; notes="", folder="Plots", savetokataja=false)
+	function savePlotData(x, y, title::String, p::Parameters, initialState::String; notes="", folder="Plots", savetokataja=false)
 		path = pwd() * "/" * folder * "/" * title
 		if savetokataja
 			path = "/data/htolppan" * "/" * folder * "/" * title
@@ -324,28 +336,28 @@ module MIPTM
 		d .= exp(Diagonal(d))
 		return U * d * U'
 	end
-end
 
-function projet_to_basis_state(Ψ)
-	probForProjection = rand(Float64)
-	pᵢ = 0
-	for i in eachindex(length(Ψ))
-		pᵢ += abs2(Ψ[i])
-		if probForProjection < pᵢ
-			s = zeros(ComplexF64, length(Ψ))
-			s[i] = 1
-			return s
+	function projet_to_basis_state(Ψ)
+		probForProjection = rand(Float64)
+		pᵢ = 0
+		for i in eachindex(Ψ)
+			pᵢ += abs2(Ψ[i])
+			if probForProjection < pᵢ
+				s = zeros(ComplexF64, length(Ψ))
+				s[i] = 1
+				return s
+			end
 		end
 	end
-end
-function real_measurement_results(sol, op)
-	out = []
-	for Ψ in sol
-		projected_state = projet_to_basis_state(Ψ[end])
-		measurement_outcome = real(projected_state' * op * projected_state)
-		push!(out, measurement_outcome)
+	function real_measurement_results(sol, op)
+		out = []
+		for Ψ in sol
+			projected_state = projet_to_basis_state(Ψ[end])
+			measurement_outcome = real(projected_state' * op * projected_state)
+			push!(out, measurement_outcome)
+		end
+		return out
 	end
-	return out
 end
 
 #=

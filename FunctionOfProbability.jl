@@ -171,7 +171,7 @@ function makeParam(st::ST)
 	#projOp = singleSubspaceProjectors(sp)
 	projOp = generateProjectionOperators(sp)
 	pp = ProjectionParameters(p=0.0, f=1.0, projOp=projOp)
-	bhp = BoseHubbardParameters(sp=sp, w=100.0, wσ=0.0,U=10.0, Uσ=0.0,J=1.0, Jσ=0.0) #Minus sign for U is included in HU, U>0 here is attractive
+	bhp = BoseHubbardParameters(sp=sp, w=100.0, wσ=0.0,U=5.0, Uσ=0.0,J=1.0, Jσ=0.0) #Minus sign for U is included in HU, U>0 here is attractive
 	return Parameters(sp=sp, pp=pp, bhp=bhp, Ψ₀=state, sdim=6, dt=0.02, time=20.0, traj=st.traj)#sdim is Krylov subspace dim
 end
 function meanAndVar(results)
@@ -189,7 +189,7 @@ function f()
 	#SELECT PROBABILITY RANGE AND TRAJECTORIES
 	probabilities = 0.005:0.001:0.1
 	#probabilities = 0.1:0.025:1.0
-	traj = 10
+	traj = 1000
 	sizesAndTraj = [ST(4, 2, traj), ST(6, 3, traj), ST(8, 4, traj)]
 	#sizesAndTraj = [ST((12,6), traj)]
 

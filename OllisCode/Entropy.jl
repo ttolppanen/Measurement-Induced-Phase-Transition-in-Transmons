@@ -15,7 +15,7 @@ function entanglement_entropy(L, N, s, sites; cap=N)
         schmidt[find_index_open(basis_vector[1:sites]), find_index_open(basis_vector[sites + 1: end])] = state[i]
     end
 
-    S = svd(schmidt).S
+    S = svdvals(schmidt)
     entropy = 0.0
     for i in 1:sub_dim
         if S[i] > 1e-16

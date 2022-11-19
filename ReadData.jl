@@ -84,5 +84,5 @@ function combinedata()
             mkpath("./" * "newdata" * "/" * filename)
             jldsave("./" * "newdata" * "/" * filename * "/data.jld2"; x, y)
         end
-    end
+    end 
 end

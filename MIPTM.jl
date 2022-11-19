@@ -117,16 +117,10 @@ module MIPTM
 	end
 	function calcMean(sol, f::Function)
 		numOfVal = length(sol)
-
-		threads = []
-		for _ in 1:Threads.nthreads()
-			push!(threads, zeros(length(sol[1])))
-		end
-
-        Threads.@threads for i in 1:numOfVal
-            threads[Threads.threadid()] .+= f.(sol[i])
+		mean = f.(sol[1])
+        for i in 2:numOfVal
+            mean .+= f.(sol[i])
         end
-		mean = sum(threads)
 		mean ./= numOfVal
 		if length(mean) == 1
 			return mean[1]

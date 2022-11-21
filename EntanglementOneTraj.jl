@@ -58,8 +58,8 @@ end
 #BLAS.set_num_threads(1)
 @time let 
 	for i in [4,6,8]
-		f(0.005, i)
-		f(0.1, i)
+		f(0.01, i)
+		#f(0.1, i)
 	end
 println("end")
 end

@@ -1,4 +1,4 @@
-using MIPTM, ParametersModule, Plots
+using MIPTM, ParametersModule, Plots, Dates
 include.("OllisCode/Entropy.jl")
 
 function calcWithDifferentProb(probabilities, p::Parameters, funcs)
@@ -201,9 +201,10 @@ function f()
 
 	# HERE WE SAVE ALL THE CALCULATED FUNCTIONS
 	measurementType = 2
-	folder = "Data"
+	time = Dates.format(now(), "d-m")
+	folder = "Data" * time
 	notes = "Measurement_" * string(measurementType)
-	savetokataja = false
+	savetokataja = true
 	savePlotData(probabilities, results[1], "M$(measurementType)_Entanglement", p, "|1010..>"; notes=notes, folder=folder, savetokataja=savetokataja) #THE NOTES COULD INCLUDE THE TYPE OF THE MEASUREMENT (1,2,3)
 	savePlotData(probabilities, results[2], "M$(measurementType)_Proper_fluctuation", p, "|1010..>"; notes=notes, folder=folder, savetokataja=savetokataja) #results[1] ent, results[2] ProperFluc....
 	savePlotData(probabilities, results[3], "M$(measurementType)_fluctuations", p, "|1010..>"; notes=notes, folder=folder, savetokataja=savetokataja) #results[1] ent, results[2] ProperFluc....
@@ -252,4 +253,12 @@ function f()
 
 end
 
-f()
+function savetime(time)
+	io = open("./time.txt", "w")
+	time = string(canonicalize(Dates.Second(round(time))))
+	println(io, time)
+	close(io)
+end
+
+time = @elapsed f()
+savetime(time)

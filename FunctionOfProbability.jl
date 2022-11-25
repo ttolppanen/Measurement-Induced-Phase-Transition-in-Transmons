@@ -189,7 +189,7 @@ function f()
 	#SELECT PROBABILITY RANGE AND TRAJECTORIES
 	probabilities = 0.01:0.001:0.1
 	#probabilities = 0.1:0.025:1.0
-	traj = 1000
+	traj = 10000
 	sizesAndTraj = [ST(4, 2, traj), ST(6, 3, traj), ST(8, 4, traj), ST(10, 5, traj)]
 	#sizesAndTraj = [ST((12,6), traj)]
 

@@ -48,7 +48,8 @@ module ParametersModule
 				cap = N
 			end
 			dim = dimensions(L, N, cap=cap)
-			useKrylov = dim > 1000
+			useKrylov = dim > 200
+			@show useKrylov
 			new(L, N, cap, dim, useKrylov)
 		end
 	end
@@ -126,7 +127,7 @@ module ParametersModule
 					traj=1, sdim::Int64, Ψ₀::StateType)
 
 			t = TimeData(dt, time, pp.f)
-			display(sp.dim)
+			@show sp.dim
 			if sdim > sp.dim
 				display("sdim larger than dimensions! Changed sdim = dimensions.")
 				sdim = sp.dim

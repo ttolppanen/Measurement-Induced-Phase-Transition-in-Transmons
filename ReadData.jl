@@ -36,13 +36,13 @@ function SeparateMeanAndVar(data)
 end
 
 function SaveForMatlab(fileName)
-    x, y4, y6, y8 = ReadData(fileName)
+    x, y4, y6, y8, y10 = ReadData(fileName)
     SaveVectorMatlab(x, fileName, "probabilities")
     if ContainsProperFluc(fileName)
-        SaveVectorMatlab(y12, fileName, "L12")
         SaveVectorMatlab(y4, fileName, "L4")
         SaveVectorMatlab(y6, fileName, "L6")
         SaveVectorMatlab(y8, fileName, "L8")
+        SaveVectorMatlab(y10, fileName, "L10")
     elseif ContainsMeanAndVariance(fileName)
         SaveVectorMatlab(y4[1], fileName, "L4_Mean")
         SaveVectorMatlab(y4[2], fileName, "L4_Var")
@@ -50,10 +50,13 @@ function SaveForMatlab(fileName)
         SaveVectorMatlab(y6[2], fileName, "L6_Var")
         SaveVectorMatlab(y8[1], fileName, "L8_Mean")
         SaveVectorMatlab(y8[2], fileName, "L8_Var")
+        SaveVectorMatlab(y10[1], fileName, "L10_Mean")
+        SaveVectorMatlab(y10[2], fileName, "L10_Var")
     else
         SaveVectorMatlab(reduce(hcat, y4), fileName, "L4")
         SaveVectorMatlab(reduce(hcat, y6), fileName, "L6")
         SaveVectorMatlab(reduce(hcat, y8), fileName, "L8")
+        SaveVectorMatlab(reduce(hcat, y10), fileName, "L10")
     end
 end
 
@@ -71,6 +74,9 @@ function f()
     #plot!(x, y12[1])
     #To save the data in .csv form for matlab
     #SaveForMatlab("M2_smallLN")
+    for name in ["M2_corrlN", "M2_corrlNexpval", "M2_Entanglement", "M2_fluctuations", "M2_halfLN", "M2_halfLNexpval", "M2_LN", "M2_LNexpval", "M2_Proper_fluctuation", "M2_smallLN", "M2_smallLNexpval"]
+        SaveForMatlab(name)
+    end
 end
 
 function combinedata()

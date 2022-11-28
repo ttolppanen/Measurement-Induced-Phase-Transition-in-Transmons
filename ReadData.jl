@@ -4,20 +4,20 @@ using DelimitedFiles
 
 function ReadData(fileName)
     if ContainsMeanAndVariance(fileName) && !(ContainsProperFluc(fileName))
-        data = load("./Data for the paper/" * fileName * "/data.jld2", "x", "y")
-        return data[1], SeparateMeanAndVar(data[2][1]), SeparateMeanAndVar(data[2][2]), SeparateMeanAndVar(data[2][3])
+        data = load("./Data/" * fileName * "/data.jld2", "x", "y")
+        return data[1], SeparateMeanAndVar(data[2][1]), SeparateMeanAndVar(data[2][2]), SeparateMeanAndVar(data[2][3]), SeparateMeanAndVar(data[2][4])
     else
-        data = load("./Data for the paper/" * fileName * "/data.jld2", "x", "y")
-        return data[1], data[2][1], data[2][2], data[2][3]
+        data = load("./Data/" * fileName * "/data.jld2", "x", "y")
+        return data[1], data[2][1], data[2][2], data[2][3], data[2][4]
     end
 end
 function ReadData(foldername, fileName)
     if ContainsMeanAndVariance(fileName) && !(ContainsProperFluc(fileName))
         data = load("./" * foldername * "/" * fileName * "/data.jld2", "x", "y")
-        return data[1], SeparateMeanAndVar(data[2][1]), SeparateMeanAndVar(data[2][2]), SeparateMeanAndVar(data[2][3])
+        return data[1], SeparateMeanAndVar(data[2][1]), SeparateMeanAndVar(data[2][2]), SeparateMeanAndVar(data[2][3]), SeparateMeanAndVar(data[2][4])
     else
         data = load("./" * foldername * "/" * fileName * "/data.jld2", "x", "y")
-        return data[1], data[2][1], data[2][2], data[2][3]
+        return data[1], data[2][1], data[2][2], data[2][3], data[2][4]
     end
 end
 
@@ -31,7 +31,6 @@ function ContainsProperFluc(filename)
 end
 
 function SeparateMeanAndVar(data)
-    @show data[1]
     return [res[1] for res in data], [res[2] for res in data]
 end
 
@@ -75,6 +74,7 @@ function f()
     #To save the data in .csv form for matlab
     #SaveForMatlab("M2_smallLN")
     for name in ["M2_corrlN", "M2_corrlNexpval", "M2_Entanglement", "M2_fluctuations", "M2_halfLN", "M2_halfLNexpval", "M2_LN", "M2_LNexpval", "M2_Proper_fluctuation", "M2_smallLN", "M2_smallLNexpval"]
+        @show name
         SaveForMatlab(name)
     end
 end
@@ -92,3 +92,5 @@ function combinedata()
         end
     end 
 end
+
+f()
